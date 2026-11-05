@@ -30,7 +30,7 @@ test("local assets exist and scripts load in dependency order", () => {
   const assets = [...html.matchAll(/(?:src|href)="(?!https?:|#|mailto:)([^"]+)"/g)].map((m) => m[1]);
   for (const a of assets) assert.ok(fs.existsSync(path.join(dir, a)), `${a} referenced but missing`);
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ["data.js", "chat.js", "app.js"]);
+  assert.deepEqual(scripts, ["data.js", "chat.js", "llm.js", "app.js"]);
 });
 
 test("print stylesheet hides everything but the résumé", () => {
