@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hugo Lafleur — Engineering Leader | AI &amp; SRE</title>
+  <!-- Background font loading so it doesn't block rendering -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Global App Shell: Split View (Left: Editorial Portfolio, Right: 30% Persistent Agent Console) -->
+  <div class="app-layout">
+    
+    <!-- ════════════════════ LEFT PANE (Scrollable Editorial Content) ════════════════════ -->
+    <div class="content-pane">
+      <!-- Sticky Editorial Header -->
+      <header class="site-header">
+        <div class="header-inner">
+          <a href="#top" class="mark"><span class="mark-badge">HL</span> Hugo Lafleur</a>
+          <nav class="nav">
+            <a href="#resume">Résumé</a>
+            <a href="#writing">Writing</a>
+            <a href="#references">References</a>
+            <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle theme" title="Toggle theme">
+              <span class="i-sun">☼</span><span class="i-moon">☾</span>
+            </button>
+            <button class="nav-agent-btn" data-action="toggle-agent" title="Toggle Agent Console (⌘B)">
+              <span class="pulse-dot"></span>
+              <span class="nav-agent-txt">Agent</span>
+              <kbd class="key-hint">⌘B</kbd>
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <main id="top">
+        <!-- ───────── Hero ───────── -->
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow" id="hero-eyebrow"></p>
+            <h1 class="display">I love building<br /><em>technology teams.</em></h1>
+            <p class="lede" id="hero-lede"></p>
+            <div class="hero-cta">
+              <button class="btn btn-primary" data-action="print-resume">Download résumé <span aria-hidden="true">↓</span></button>
+              <a class="btn btn-ghost" href="#resume">View online</a>
+            </div>
+            <ul class="hero-links" id="hero-links"></ul>
+          </div>
+        </section>
+
+        <!-- ───────── Résumé ───────── -->
+        <section class="section" id="resume">
+          <div class="section-head">
+            <h2 class="section-title">Résumé</h2>
+            <button class="btn btn-ghost btn-sm" data-action="print-resume">Download PDF ↓</button>
+          </div>
+
+          <article class="paper" id="resume-paper">
+            <header class="cv-head">
+              <div>
+                <h3 class="cv-name" id="cv-name"></h3>
+                <p class="cv-title" id="cv-title"></p>
+              </div>
+              <ul class="cv-contact" id="cv-contact"></ul>
+            </header>
+
+            <div class="cv-grid">
+              <div class="cv-main">
+                <h4 class="cv-h">Profile</h4>
+                <p class="cv-summary" id="cv-summary"></p>
+                <h4 class="cv-h">Experience</h4>
+                <div id="cv-experience"></div>
+              </div>
+              <aside class="cv-side">
+                <h4 class="cv-h">Top skills</h4>
+                <ul class="tags" id="cv-skills"></ul>
+                <h4 class="cv-h">Technologies</h4>
+                <ul class="tags tags-muted" id="cv-tech"></ul>
+                <h4 class="cv-h">Education</h4>
+                <div id="cv-edu"></div>
+                <h4 class="cv-h">Languages</h4>
+                <ul class="plain" id="cv-lang"></ul>
+                <h4 class="cv-h">Certifications</h4>
+                <ul class="plain" id="cv-cert"></ul>
+              </aside>
+            </div>
+          </article>
+        </section>
+
+        <!-- ───────── Writing ───────── -->
+        <section class="section" id="writing">
+          <div class="section-head">
+            <h2 class="section-title">Writing</h2>
+            <span class="placeholder-flag">Placeholder topics — no posts yet</span>
+          </div>
+          <ol class="posts" id="posts"></ol>
+        </section>
+
+        <!-- ───────── References ───────── -->
+        <section class="section" id="references">
+          <div class="section-head">
+            <h2 class="section-title">References</h2>
+            <span class="placeholder-flag">To fill in — not in LinkedIn export</span>
+          </div>
+          <div class="refs" id="refs"></div>
+
+          <h3 class="sub-title">Elsewhere</h3>
+          <div class="links-grid" id="links-grid"></div>
+        </section>
+
+        <footer class="site-footer">
+          <p id="footer-off"></p>
+          <p class="muted">© 2026 Hugo Lafleur · Montreal</p>
+        </footer>
+      </main>
+    </div>
+
+
+    <!-- ════════════════════ RIGHT PANE (Persistent 30% Agent Console) ════════════════════ -->
+    <aside class="agent-pane" id="agent-pane" aria-label="Hugo Agent Console">
+      
+      <!-- Agent Top Bar -->
+      <div class="agent-bar">
+        <div class="agent-brand">
+          <span class="agent-gem">◈</span>
+          <span class="agent-name">hugo-twin</span>
+          <span class="agent-ver">v1.2</span>
+        </div>
+        <div class="agent-bar-right">
+          <div class="agent-status">
+            <span class="pulse-dot"></span>
+            <span class="status-txt">ready</span>
+          </div>
+          <button class="agent-toggle-btn" data-action="toggle-agent" title="Collapse console (⌘B)" aria-label="Collapse console">
+            <span class="collapse-icon">→|</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Agent Context / Breadcrumb Bar -->
+      <div class="agent-subbar">
+        <span class="mono-badge">workspace: hugo-lafleur</span>
+        <span class="mono-tools">tools: [resume, blog, contacts]</span>
+      </div>
+
+      <!-- Scrollable Agent Transcript -->
+      <div class="agent-log" id="agent-log" aria-live="polite">
+        <!-- Messages will be dynamically rendered here -->
+      </div>
+
+      <!-- Quick Action Chips -->
+      <div class="agent-chips" id="agent-chips"></div>
+
+      <!-- Prompt Input Bar (Claude Code / Antigravity Style) -->
+      <div class="agent-footer">
+        <form class="agent-input-form" id="agent-form" autocomplete="off">
+          <div class="prompt-prefix">❯</div>
+          <input 
+            id="agent-input" 
+            type="text" 
+            placeholder="Ask about AI, SRE, leadership, or run /help…" 
+            spellcheck="false"
+          />
+          <button type="submit" class="agent-send-btn" title="Send (Enter)">↵</button>
+        </form>
+        <div class="agent-hint">
+          <span>Press <kbd>↵</kbd> to query</span>
+          <span><kbd>⌘K</kbd> to focus</span>
+        </div>
+      </div>
+
+      <button class="agent-close-mobile" data-action="toggle-agent" aria-label="Close console">✕</button>
+    </aside>
+
+  </div>
+
+  <!-- Floating Edge Button when agent is collapsed -->
+  <button class="agent-edge-tab" data-action="toggle-agent" title="Open Agent Console (⌘B / ⌘K)">
+    <span class="agent-gem">◈</span>
+    <span class="edge-txt">Agent Console</span>
+    <span class="pulse-dot"></span>
+  </button>
+
+  <!-- Blog post reader modal -->
+  <dialog class="reader" id="reader">
+    <button class="icon-btn reader-close" data-action="close-reader" aria-label="Close">✕</button>
+    <div id="reader-body"></div>
+  </dialog>
+
+  <script src="data.js"></script>
+  <script src="chat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
