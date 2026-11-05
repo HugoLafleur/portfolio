@@ -6,9 +6,20 @@ Personal site for Hugo Lafleur: an editorial résumé and writing page, with a c
 
 - **Résumé** rendered from `mock/data.js`. **Download PDF** prints only the résumé (Letter).
 - **"Ask Hugo" pane** on the right. Toggle with <kbd>⌘B</kbd>, focus with <kbd>⌘K</kbd> or <kbd>/</kbd>. On narrow screens it becomes an overlay.
-  - The chat is **scripted**: keyword matching in `mock/chat.js` over the profile data, with no LLM and no network calls.
+  - Default: Scripted keyword matching in `mock/chat.js` over profile data (zero cost, zero latency, runs offline).
+  - **Feature Flag (`llm`):** Optional LLM integration (Cohere `command-r7b-12-2024` via Cloudflare Pages Function `/api/chat`).
 - **Writing** and **References** are placeholders until real content exists.
 - Light/dark theme.
+
+## LLM Feature Flag
+
+The LLM integration is disabled by default for zero API cost and 100% offline reliability.
+
+You can test and toggle it without editing code:
+- **Via URL:** Append `?llm=1` to test with LLM enabled, or `?llm=0` to force scripted mode.
+- **Via Console:** `localStorage.setItem('feature:llm', 'true')` (or `'false'`).
+- **Via Code:** Toggle `features.llm: true` in `mock/data.js`.
+- **Automatic Fallback:** If the API key is missing or the backend is offline, the chat automatically falls back to the local profile engine.
 
 ## Usage
 

@@ -15,6 +15,7 @@ help:
 build: test clean
 	@mkdir -p $(DIST)
 	@cp $(SRC)/*.html $(SRC)/*.css $(SRC)/*.js $(DIST)/
+	@if [ -d functions ]; then cp -r functions $(DIST)/; fi
 	@echo "Built $(DIST)/:" && ls $(DIST)
 
 run:
