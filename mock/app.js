@@ -113,8 +113,9 @@
     d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ hugo-twin"}</div><div class="agent-bubble">${inner}</div>`;
     return d;
   };
-  const addReply = ({ tool, html: markup, actions }) => {
-    const d = message("bot", `${tool ? `<div class="tool-pill">⚡ <code>${tool}</code></div>` : ""}${markup}`);
+  const addReply = ({ tool, isFallback, html: markup, actions = [] }) => {
+    const pillClass = isFallback ? "tool-pill fallback" : "tool-pill";
+    const d = message("bot", `${tool ? `<div class="${pillClass}">⚡ <code>${tool}</code></div>` : ""}${markup}`);
     if (actions.length) {
       const bar = document.createElement("div");
       bar.className = "agent-actions";
@@ -130,12 +131,62 @@
     append(d);
   };
 
-  const ask = (q) => {
+  /* ─────────────── Feature Flag & LLM Mode ─────────────── */
+  const llmActive = window.LLM ? window.LLM.isLLMEnabled(P) : false;
+  if (llmActive) {
+    const provider = P.features?.llmProvider || "cohere";
+    const model = P.features?.llmModel || "command-r7b";
+    $("#agent-mode-badge").innerHTML = `mode: <b class="llm-pill">${esc(provider)}:${esc(model)}</b>`;
+    $("#agent-tools-badge").textContent = "tools: [grounding, cohere-v2-chat]";
+  }
+
+  const ask = async (q) => {
     if (!q || !q.trim()) return;
-    const res = chat.answer(q);
-    if (res.id === "clear") { log.innerHTML = ""; addReply(chat.answer("/help")); return; }
-    append(message("user", esc(q)));
+    const trimmed = q.trim();
+
+    // Slash commands (/clear, /resume, /contact, etc.) are always handled instantly locally
+    if (trimmed.startsWith("/")) {
+      const res = chat.answer(trimmed);
+      if (res.id === "clear") { log.innerHTML = ""; addReply(chat.answer("/help")); return; }
+      append(message("user", esc(trimmed)));
+      addReply(res);
+      return;
+    }
+
+    append(message("user", esc(trimmed)));
     const typing = append(message("bot", `<div class="agent-typing"><span></span><span></span><span></span></div>`));
+
+    // When LLM feature flag is enabled
+    if (llmActive && window.LLM) {
+      const endpoint = P.features?.llmEndpoint || "/api/chat";
+      const [llmRes, localRes] = await Promise.all([
+        window.LLM.queryChatAPI(trimmed, { endpoint }),
+        Promise.resolve(chat.answer(trimmed)),
+      ]);
+      typing.remove();
+
+      if (llmRes.ok) {
+        const paragraphs = llmRes.reply.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+        addReply({
+          tool: `${llmRes.provider || "cohere"}:${llmRes.model || "command-r7b"}`,
+          html: paragraphs,
+          actions: localRes.id !== "fallback" ? localRes.actions : [],
+        });
+        return;
+      }
+
+      // Graceful fallback to local profile data if LLM is offline or unconfigured
+      addReply({
+        tool: "fallback:offline_profile",
+        isFallback: true,
+        html: localRes.html,
+        actions: localRes.actions,
+      });
+      return;
+    }
+
+    // Default scripted engine mode (llm flag false)
+    const res = chat.answer(trimmed);
     setTimeout(() => { typing.remove(); addReply(res); }, 350 + Math.random() * 250);
   };
 

@@ -25,6 +25,15 @@ const PROFILE = {
 
   topSkills: ["Splunk Enterprise", "Business Storytelling", "Organizational Leadership"],
 
+  // Feature Flags
+  features: {
+    // Default disabled. Can be overridden via URL (?llm=1) or localStorage.setItem('feature:llm', 'true')
+    llm: false,
+    llmProvider: "cohere",
+    llmModel: "command-r7b-12-2024",
+    llmEndpoint: "/api/chat",
+  },
+
   // Technologies explicitly named in the experience section of the profile.
   tech: [
     "Kubernetes", "Azure", "AWS (EKS, Lambda, API Gateway, S3, RDS)", "Python", "Docker", "Mesos", "Chef",

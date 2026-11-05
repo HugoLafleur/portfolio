@@ -26,7 +26,7 @@ run:
 	fi
 
 test:
-	@for f in $(SRC)/*.js; do node --check $$f || exit 1; done
+	@for f in $(SRC)/*.js functions/api/*.js; do node --check $$f || exit 1; done
 	@node --test test/
 
 clean:

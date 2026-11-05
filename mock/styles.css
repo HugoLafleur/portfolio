@@ -394,6 +394,15 @@ body.agent-collapsed .agent-edge-tab {
   border-radius: 4px;
   margin-bottom: 6px;
 }
+.tool-pill.fallback {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.llm-pill {
+  color: #38bdf8;
+  font-weight: 500;
+}
 
 /* Action buttons in bubble */
 .agent-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
