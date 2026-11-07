@@ -65,7 +65,6 @@ test("queryChatAPI parses successful model response", async () => {
   const res = await LLM.queryChatAPI("Tell me about ServiceNow", { fetch: fakeFetch });
   assert.equal(res.ok, true);
   assert.equal(res.reply, "I lead AI engineering management at ServiceNow.");
-  assert.equal(res.model, "command-r7b-12-2024");
   assert.equal(res.fallback, false);
 });
 
@@ -281,8 +280,6 @@ test("queryChatAPI streams tokens via SSE when stream/onToken is provided", asyn
   assert.equal(res.ok, true);
   assert.equal(res.reply, "Director, AI");
   assert.deepEqual(tokens, ["Director", ", AI"]);
-  assert.equal(res.model, "command-r7b");
-  assert.equal(res.provider, "cohere");
   assert.equal(res.truncated, false);
   assert.equal(res.fallback, false);
 });

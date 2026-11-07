@@ -129,14 +129,7 @@
         if (!reply.trim()) {
           return { ok: false, fallback: true, error: "Empty stream response" };
         }
-        return {
-          ok: true,
-          reply: reply.trim(),
-          model: "command-r7b",
-          provider: "cohere",
-          truncated,
-          fallback: false,
-        };
+        return { ok: true, reply: reply.trim(), truncated, fallback: false };
       }
 
       const data = await res.json();
@@ -147,8 +140,6 @@
       return {
         ok: true,
         reply: data.reply,
-        model: data.model || "command-r7b",
-        provider: data.provider || "cohere",
         truncated: Boolean(data.truncated),
         fallback: false,
       };
