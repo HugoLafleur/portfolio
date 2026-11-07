@@ -22,7 +22,7 @@ run:
 		echo "Already serving on http://localhost:$(PORT)"; open http://localhost:$(PORT); \
 	else \
 		(sleep 1 && open http://localhost:$(PORT)) & \
-		python3 -m http.server $(PORT) --directory $(SRC); \
+		node scripts/dev.js; \
 	fi
 
 test:
