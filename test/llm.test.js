@@ -249,8 +249,9 @@ test("LLM.readSSEStream accumulates tokens and calls onToken callback", async ()
   });
 
   const tokens = [];
-  const reply = await LLM.readSSEStream(stream, (delta) => tokens.push(delta));
+  const { reply, truncated } = await LLM.readSSEStream(stream, (delta) => tokens.push(delta));
   assert.equal(reply, "Hello from streaming");
+  assert.equal(truncated, false);
   assert.deepEqual(tokens, ["Hello", " from", " streaming"]);
 });
 
@@ -280,7 +281,7 @@ test("queryChatAPI streams tokens via SSE when stream/onToken is provided", asyn
   assert.equal(res.ok, true);
   assert.equal(res.reply, "Director, AI");
   assert.deepEqual(tokens, ["Director", ", AI"]);
-  assert.equal(res.provider, "cohere");
+  assert.equal(res.truncated, false);
   assert.equal(res.fallback, false);
 });
 
@@ -330,4 +331,54 @@ test("onRequestPost supports stream: true returning SSE Response", async () => {
   assert.ok(text.includes('data: {"delta":"Streamed"}\n\n'));
   assert.ok(text.includes('data: {"delta":" answer"}\n\n'));
   assert.ok(text.includes('data: [DONE]\n\n'));
+});
+
+const sseStream = (chunks) => {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      for (const c of chunks) controller.enqueue(encoder.encode(c));
+      controller.close();
+    },
+  });
+};
+
+test("createDeltaTransformStream flags replies cut off at max_tokens", async () => {
+  const { createDeltaTransformStream } = await import("../functions/api/chat.js");
+  const out = await new Response(
+    sseStream([
+      'event: content-delta\ndata: {"type":"content-delta","delta":{"message":{"content":{"text":"One, two"}}}}\n\n',
+      'event: message-end\ndata: {"type":"message-end","delta":{"finish_reason":"MAX_TOKENS"}}\n\n',
+    ]).pipeThrough(createDeltaTransformStream())
+  ).text();
+  assert.equal(out, 'data: {"delta":"One, two"}\n\ndata: {"truncated":true}\n\ndata: [DONE]\n\n');
+
+  const { reply, truncated } = await LLM.readSSEStream(sseStream([out]));
+  assert.equal(reply, "One, two");
+  assert.equal(truncated, true);
+});
+
+test("queryChatAPI aborts a stream that stalls after the first token", async () => {
+  const tokens = [];
+  const res = await LLM.queryChatAPI("Hi", {
+    idleMs: 20,
+    onToken: (d) => tokens.push(d),
+    // Sends one token, then goes silent until the client aborts.
+    fetch: async (_url, { signal }) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: {"delta":"Partial"}\n\n'));
+          signal.addEventListener("abort", () => controller.error(Object.assign(new Error("Aborted"), { name: "AbortError" })));
+        },
+      }),
+    }),
+  });
+
+  assert.deepEqual(tokens, ["Partial"]);
+  assert.equal(res.ok, false);
+  assert.equal(res.fallback, true);
+  assert.match(res.error, /timed out/);
 });

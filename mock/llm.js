@@ -30,12 +30,33 @@
 
   /**
    * Reads an SSE stream of `data: {"delta": "..."}\n\n` events, invoking `onToken(delta, full)` on each token.
+   * Resolves to { reply, truncated } — truncated is true when the server reports the reply hit max_tokens.
    */
   async function readSSEStream(stream, onToken) {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let fullReply = "";
+    let reply = "";
+    let truncated = false;
+
+    // Returns true on the [DONE] terminator.
+    const handleLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return false;
+      const dataStr = trimmed.slice(5).trim();
+      if (dataStr === "[DONE]") return true;
+      try {
+        const parsed = JSON.parse(dataStr);
+        if (parsed.truncated) truncated = true;
+        if (parsed.delta) {
+          reply += parsed.delta;
+          if (typeof onToken === "function") onToken(parsed.delta, reply);
+        }
+      } catch {
+        // ignore malformed SSE line
+      }
+      return false;
+    };
 
     while (true) {
       const { done, value } = await reader.read();
@@ -44,56 +65,23 @@
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop();
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const dataStr = trimmed.slice(5).trim();
-        if (!dataStr) continue;
-        if (dataStr === "[DONE]") {
-          return fullReply;
-        }
-
-        try {
-          const parsed = JSON.parse(dataStr);
-          if (parsed.delta) {
-            fullReply += parsed.delta;
-            if (typeof onToken === "function") {
-              onToken(parsed.delta, fullReply);
-            }
-          }
-        } catch {
-          // ignore malformed SSE line
-        }
-      }
+      if (lines.some(handleLine)) return { reply, truncated };
     }
 
-    if (buffer.trim().startsWith("data:")) {
-      const dataStr = buffer.trim().slice(5).trim();
-      if (dataStr && dataStr !== "[DONE]") {
-        try {
-          const parsed = JSON.parse(dataStr);
-          if (parsed.delta) {
-            fullReply += parsed.delta;
-            if (typeof onToken === "function") {
-              onToken(parsed.delta, fullReply);
-            }
-          }
-        } catch {}
-      }
-    }
-
-    return fullReply;
+    handleLine(buffer);
+    return { reply, truncated };
   }
 
   /**
    * Calls POST /api/chat with optional streaming or JSON response.
    * If `options.onToken` or `options.stream` is supplied, streams tokens.
-   * Never throws; returns { ok, reply, ... } or { ok: false, fallback: true, error }.
+   * Aborts if no token arrives within `timeoutMs` (default 8s), or a stream goes quiet for `idleMs` (default 5s).
+   * Never throws; returns { ok, reply, truncated, ... } or { ok: false, fallback: true, error }.
    */
   async function queryChatAPI(message, options = {}) {
     const endpoint = options.endpoint || "/api/chat";
-    const timeoutMs = options.timeoutMs || 15000;
+    const timeoutMs = options.timeoutMs || 8000;
+    const idleMs = options.idleMs || 5000;
     const fetchImpl = options.fetch || (typeof fetch !== "undefined" ? fetch : null);
     const onToken = options.onToken;
     const wantStream = Boolean(options.stream ?? onToken);
@@ -103,7 +91,13 @@
     }
 
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    let timer = null;
+    const arm = (ms) => {
+      if (!controller) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), ms);
+    };
+    arm(timeoutMs);
 
     try {
       const payload = { message: String(message || "").trim() };
@@ -124,17 +118,15 @@
       const isStream = contentType.includes("text/event-stream") || (wantStream && res.body && typeof res.body.getReader === "function");
 
       if (isStream && res.body) {
-        const fullReply = await readSSEStream(res.body, onToken);
-        if (!fullReply || !fullReply.trim()) {
+        // Each token resets the idle timer, so only a stalled stream is aborted.
+        const { reply, truncated } = await readSSEStream(res.body, (delta, full) => {
+          arm(idleMs);
+          if (typeof onToken === "function") onToken(delta, full);
+        });
+        if (!reply.trim()) {
           return { ok: false, fallback: true, error: "Empty stream response" };
         }
-        return {
-          ok: true,
-          reply: fullReply.trim(),
-          model: "command-r7b",
-          provider: "cohere",
-          fallback: false,
-        };
+        return { ok: true, reply: reply.trim(), truncated, fallback: false };
       }
 
       const data = await res.json();
@@ -147,6 +139,7 @@
         reply: data.reply,
         model: data.model || "command-r7b",
         provider: data.provider || "cohere",
+        truncated: false,
         fallback: false,
       };
     } catch (err) {

@@ -113,22 +113,31 @@
     d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ hugo-twin"}</div><div class="agent-bubble">${inner}</div>`;
     return d;
   };
+  const appendActions = (d, actions = []) => {
+    if (!actions.length) return;
+    const bar = document.createElement("div");
+    bar.className = "agent-actions";
+    for (const a of actions.map(resolveAction).filter(Boolean)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `❯ ${a.label}`;
+      b.onclick = a.run;
+      bar.appendChild(b);
+    }
+    d.querySelector(".agent-bubble").appendChild(bar);
+  };
   const addReply = ({ tool, isFallback, html: markup, actions = [] }) => {
     const pillClass = isFallback ? "tool-pill fallback" : "tool-pill";
     const d = message("bot", `${tool ? `<div class="${pillClass}">⚡ <code>${tool}</code></div>` : ""}${markup}`);
-    if (actions.length) {
-      const bar = document.createElement("div");
-      bar.className = "agent-actions";
-      for (const a of actions.map(resolveAction).filter(Boolean)) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = `❯ ${a.label}`;
-        b.onclick = a.run;
-        bar.appendChild(b);
-      }
-      d.querySelector(".agent-bubble").appendChild(bar);
-    }
-    append(d);
+    appendActions(d, actions);
+    return append(d);
+  };
+  // Follow new content only if the visitor hasn't scrolled up to reread something.
+  const isNearBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const update = (fn) => {
+    const follow = isNearBottom();
+    fn();
+    if (follow) log.scrollTop = log.scrollHeight;
   };
 
   /* ─────────────── Feature Flag & LLM Mode ─────────────── */
@@ -158,93 +167,55 @@
 
     // When LLM feature flag is enabled
     if (llmActive && window.LLM) {
-      const endpoint = P.features?.llmEndpoint || "/api/chat";
       const localRes = chat.answer(trimmed);
+      const tool = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
+      const paragraphs = (text) => text.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+      const note = (text) => `<p class="ai-note">${text}</p>`;
 
-      let botBubbleEl = null;
-      let streamBodyEl = null;
-      let accumulatedText = "";
-
-      const onToken = (delta) => {
-        if (!botBubbleEl) {
-          if (typing.parentNode) typing.remove();
-          const tool = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
-          botBubbleEl = message("bot", `<div class="tool-pill">⚡ <code>${tool}</code></div><div class="agent-reply-body"></div>`);
-          append(botBubbleEl);
-          streamBodyEl = botBubbleEl.querySelector(".agent-reply-body");
-        }
-        accumulatedText += delta;
-        const paragraphs = accumulatedText.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
-        streamBodyEl.innerHTML = `${paragraphs}<span class="agent-cursor">▌</span>`;
-        log.scrollTop = log.scrollHeight;
+      // One bubble for both streamed and JSON replies, created on the first token or on completion.
+      let bubble = null;
+      let replyBody = null;
+      let partial = "";
+      const ensureBubble = () => {
+        if (bubble) return;
+        typing.remove();
+        bubble = addReply({ tool, html: `<div class="agent-reply-body"></div>` });
+        replyBody = bubble.querySelector(".agent-reply-body");
       };
 
+      // aria-busy stops screen readers from announcing every token; the full reply is read once at the end.
+      log.setAttribute("aria-busy", "true");
       const llmRes = await window.LLM.queryChatAPI(trimmed, {
-        endpoint,
+        endpoint: P.features?.llmEndpoint || "/api/chat",
         stream: true,
-        onToken,
+        onToken: (_delta, full) => {
+          partial = full;
+          ensureBubble();
+          update(() => { replyBody.innerHTML = `${paragraphs(full)}<span class="agent-cursor">▌</span>`; });
+        },
       });
-
-      if (typing.parentNode) typing.remove();
+      typing.remove();
 
       if (llmRes.ok) {
-        const fullText = accumulatedText.trim() || llmRes.reply?.trim() || "";
-        if (!botBubbleEl && fullText) {
-          // If response came back non-streaming (e.g. JSON)
-          const paragraphs = fullText.split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("") +
-            `<p class="ai-note">AI-generated from my profile · may be inaccurate</p>`;
-          addReply({
-            tool: `${llmRes.provider || "cohere"}:${llmRes.model || "command-r7b"}`,
-            html: paragraphs,
-            actions: localRes.id !== "fallback" ? localRes.actions : [],
-          });
-          return;
-        }
-
-        if (streamBodyEl) {
-          const cursor = streamBodyEl.querySelector(".agent-cursor");
-          if (cursor) cursor.remove();
-
-          const note = document.createElement("p");
-          note.className = "ai-note";
-          note.textContent = "AI-generated from my profile · may be inaccurate";
-          streamBodyEl.appendChild(note);
-
-          if (localRes.id !== "fallback" && localRes.actions?.length) {
-            const bar = document.createElement("div");
-            bar.className = "agent-actions";
-            for (const a of localRes.actions.map(resolveAction).filter(Boolean)) {
-              const b = document.createElement("button");
-              b.type = "button";
-              b.textContent = `❯ ${a.label}`;
-              b.onclick = a.run;
-              bar.appendChild(b);
-            }
-            botBubbleEl.querySelector(".agent-bubble").appendChild(bar);
-          }
-          log.scrollTop = log.scrollHeight;
-          return;
-        }
+        ensureBubble();
+        update(() => {
+          replyBody.innerHTML = paragraphs(llmRes.reply + (llmRes.truncated ? "…" : "")) +
+            note("AI-generated from my profile · may be inaccurate");
+          if (localRes.id !== "fallback") appendActions(bubble, localRes.actions);
+        });
+      } else if (bubble) {
+        // Streaming failed after some tokens arrived: keep what we have.
+        update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from my profile"); });
+      } else {
+        // Graceful fallback to local profile data if LLM is offline or unconfigured
+        addReply({
+          tool: "fallback:offline_profile",
+          isFallback: true,
+          html: localRes.html,
+          actions: localRes.actions,
+        });
       }
-
-      // If streaming failed mid-flight after emitting partial tokens
-      if (botBubbleEl) {
-        const cursor = streamBodyEl?.querySelector(".agent-cursor");
-        if (cursor) cursor.remove();
-        const errNote = document.createElement("p");
-        errNote.className = "ai-note";
-        errNote.textContent = "Stream interrupted · AI-generated from my profile";
-        streamBodyEl?.appendChild(errNote);
-        return;
-      }
-
-      // Graceful fallback to local profile data if LLM is offline or unconfigured
-      addReply({
-        tool: "fallback:offline_profile",
-        isFallback: true,
-        html: localRes.html,
-        actions: localRes.actions,
-      });
+      log.removeAttribute("aria-busy");
       return;
     }
 

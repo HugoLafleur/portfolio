@@ -85,7 +85,7 @@ export function buildDocuments(P = PROFILE) {
 
 /**
  * Transforms a raw Cohere v2 SSE stream into normalized delta events:
- * `data: {"delta": "..."}\n\n`
+ * `data: {"delta": "..."}\n\n`, plus `data: {"truncated": true}\n\n` if the reply hit max_tokens.
  * Drops verbose citations, usage stats, and message boundaries.
  * Emits `data: [DONE]\n\n` when complete.
  */
@@ -93,47 +93,33 @@ export function createDeltaTransformStream() {
   let buffer = "";
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+  const emit = (controller, event) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+
+  const handleLine = (line, controller) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    try {
+      const parsed = JSON.parse(trimmed.slice(5).trim());
+      if (parsed.type === "content-delta") {
+        const text = parsed.delta?.message?.content?.text;
+        if (text) emit(controller, { delta: text });
+      } else if (parsed.type === "message-end" && parsed.delta?.finish_reason === "MAX_TOKENS") {
+        emit(controller, { truncated: true });
+      }
+    } catch {
+      // ignore malformed lines and Cohere's own [DONE]
+    }
+  };
 
   return new TransformStream({
     transform(chunk, controller) {
       buffer += decoder.decode(chunk, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop(); // keep trailing incomplete line in buffer
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const jsonStr = trimmed.slice(5).trim();
-        if (!jsonStr || jsonStr === "[DONE]") continue;
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          if (parsed.type === "content-delta") {
-            const text = parsed.delta?.message?.content?.text;
-            if (text) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
-            }
-          }
-        } catch {
-          // ignore malformed lines
-        }
-      }
+      for (const line of lines) handleLine(line, controller);
     },
     flush(controller) {
-      if (buffer.trim().startsWith("data:")) {
-        const jsonStr = buffer.trim().slice(5).trim();
-        if (jsonStr && jsonStr !== "[DONE]") {
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "content-delta") {
-              const text = parsed.delta?.message?.content?.text;
-              if (text) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
-              }
-            }
-          } catch {}
-        }
-      }
+      handleLine(buffer, controller);
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
     },
   });
@@ -196,7 +182,6 @@ export async function onRequestPost({ request, env, fetchImpl = fetch }) {
         headers: {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
         },
       });
     }
