@@ -65,9 +65,12 @@
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop();
-      if (lines.some(handleLine)) return { reply, truncated };
+      for (const line of lines) {
+        if (handleLine(line)) return { reply, truncated };
+      }
     }
 
+    buffer += decoder.decode();
     handleLine(buffer);
     return { reply, truncated };
   }
@@ -126,7 +129,14 @@
         if (!reply.trim()) {
           return { ok: false, fallback: true, error: "Empty stream response" };
         }
-        return { ok: true, reply: reply.trim(), truncated, fallback: false };
+        return {
+          ok: true,
+          reply: reply.trim(),
+          model: "command-r7b",
+          provider: "cohere",
+          truncated,
+          fallback: false,
+        };
       }
 
       const data = await res.json();
@@ -139,7 +149,7 @@
         reply: data.reply,
         model: data.model || "command-r7b",
         provider: data.provider || "cohere",
-        truncated: false,
+        truncated: Boolean(data.truncated),
         fallback: false,
       };
     } catch (err) {

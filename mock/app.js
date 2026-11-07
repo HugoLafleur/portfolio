@@ -149,8 +149,9 @@
     $("#agent-tools-badge").textContent = "tools: [grounding, cohere-v2-chat]";
   }
 
+  let isAsking = false;
   const ask = async (q) => {
-    if (!q || !q.trim()) return;
+    if (!q || !q.trim() || isAsking) return;
     const trimmed = q.trim();
 
     // Slash commands (/clear, /resume, /contact, etc.) are always handled instantly locally
@@ -162,66 +163,74 @@
       return;
     }
 
+    isAsking = true;
     append(message("user", esc(trimmed)));
     const typing = append(message("bot", `<div class="agent-typing"><span></span><span></span><span></span></div>`));
 
     // When LLM feature flag is enabled
     if (llmActive && window.LLM) {
-      const localRes = chat.answer(trimmed);
-      const tool = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
-      const paragraphs = (text) => text.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
-      const note = (text) => `<p class="ai-note">${text}</p>`;
-
-      // One bubble for both streamed and JSON replies, created on the first token or on completion.
-      let bubble = null;
-      let replyBody = null;
-      let partial = "";
-      const ensureBubble = () => {
-        if (bubble) return;
-        typing.remove();
-        bubble = addReply({ tool, html: `<div class="agent-reply-body"></div>` });
-        replyBody = bubble.querySelector(".agent-reply-body");
-      };
-
-      // aria-busy stops screen readers from announcing every token; the full reply is read once at the end.
       log.setAttribute("aria-busy", "true");
-      const llmRes = await window.LLM.queryChatAPI(trimmed, {
-        endpoint: P.features?.llmEndpoint || "/api/chat",
-        stream: true,
-        onToken: (_delta, full) => {
-          partial = full;
-          ensureBubble();
-          update(() => { replyBody.innerHTML = `${paragraphs(full)}<span class="agent-cursor">▌</span>`; });
-        },
-      });
-      typing.remove();
+      try {
+        const localRes = chat.answer(trimmed);
+        const tool = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
+        const paragraphs = (text) => text.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+        const note = (text) => `<p class="ai-note">${text}</p>`;
 
-      if (llmRes.ok) {
-        ensureBubble();
-        update(() => {
-          replyBody.innerHTML = paragraphs(llmRes.reply + (llmRes.truncated ? "…" : "")) +
-            note("AI-generated from my profile · may be inaccurate");
-          if (localRes.id !== "fallback") appendActions(bubble, localRes.actions);
+        // One bubble for both streamed and JSON replies, created on the first token or on completion.
+        let bubble = null;
+        let replyBody = null;
+        let partial = "";
+        const ensureBubble = () => {
+          if (bubble) return;
+          if (typing.parentNode) typing.remove();
+          bubble = addReply({ tool, html: `<div class="agent-reply-body"></div>` });
+          replyBody = bubble.querySelector(".agent-reply-body");
+        };
+
+        const llmRes = await window.LLM.queryChatAPI(trimmed, {
+          endpoint: P.features?.llmEndpoint || "/api/chat",
+          stream: true,
+          onToken: (_delta, full) => {
+            partial = full;
+            ensureBubble();
+            update(() => { replyBody.innerHTML = `${paragraphs(full)}<span class="agent-cursor">▌</span>`; });
+          },
         });
-      } else if (bubble) {
-        // Streaming failed after some tokens arrived: keep what we have.
-        update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from my profile"); });
-      } else {
-        // Graceful fallback to local profile data if LLM is offline or unconfigured
-        addReply({
-          tool: "fallback:offline_profile",
-          isFallback: true,
-          html: localRes.html,
-          actions: localRes.actions,
-        });
+
+        if (llmRes.ok) {
+          ensureBubble();
+          update(() => {
+            replyBody.innerHTML = paragraphs(llmRes.reply + (llmRes.truncated ? "…" : "")) +
+              note("AI-generated from my profile · may be inaccurate");
+            if (localRes.id !== "fallback") appendActions(bubble, localRes.actions);
+          });
+        } else if (bubble) {
+          // Streaming failed after some tokens arrived: keep what we have.
+          update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from my profile"); });
+        } else {
+          // Graceful fallback to local profile data if LLM is offline or unconfigured
+          addReply({
+            tool: "fallback:offline_profile",
+            isFallback: true,
+            html: localRes.html,
+            actions: localRes.actions,
+          });
+        }
+      } finally {
+        if (typing.parentNode) typing.remove();
+        log.removeAttribute("aria-busy");
+        isAsking = false;
       }
-      log.removeAttribute("aria-busy");
       return;
     }
 
     // Default scripted engine mode (llm flag false)
     const res = chat.answer(trimmed);
-    setTimeout(() => { typing.remove(); addReply(res); }, 350 + Math.random() * 250);
+    setTimeout(() => {
+      if (typing.parentNode) typing.remove();
+      addReply(res);
+      isAsking = false;
+    }, 350 + Math.random() * 250);
   };
 
   html("#agent-chips", window.Chat.suggestions.map((s) => `<button type="button" data-q="${esc(s.query)}">${esc(s.label)}</button>`).join(""));

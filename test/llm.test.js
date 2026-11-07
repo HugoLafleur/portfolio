@@ -281,6 +281,8 @@ test("queryChatAPI streams tokens via SSE when stream/onToken is provided", asyn
   assert.equal(res.ok, true);
   assert.equal(res.reply, "Director, AI");
   assert.deepEqual(tokens, ["Director", ", AI"]);
+  assert.equal(res.model, "command-r7b");
+  assert.equal(res.provider, "cohere");
   assert.equal(res.truncated, false);
   assert.equal(res.fallback, false);
 });

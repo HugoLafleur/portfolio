@@ -119,6 +119,7 @@ export function createDeltaTransformStream() {
       for (const line of lines) handleLine(line, controller);
     },
     flush(controller) {
+      buffer += decoder.decode();
       handleLine(buffer, controller);
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
     },
@@ -192,10 +193,13 @@ export async function onRequestPost({ request, env, fetchImpl = fetch }) {
       return json({ error: "Empty response from model", fallback: true }, 502);
     }
 
+    const truncated = data?.finish_reason === "MAX_TOKENS" || data?.message?.finish_reason === "MAX_TOKENS";
+
     return json({
       reply,
       model: MODEL,
       provider: "cohere",
+      truncated: Boolean(truncated),
       fallback: false,
     });
   } catch (err) {
