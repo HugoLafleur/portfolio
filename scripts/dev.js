@@ -104,8 +104,12 @@ const server = http.createServer(async (req, res) => {
         webRes.headers.forEach((v, k) => { resHeaders[k] = v; });
 
         res.writeHead(webRes.status, resHeaders);
-        const data = await webRes.text();
-        res.end(data);
+        if (webRes.body) {
+          const { Readable } = await import('node:stream');
+          Readable.fromWeb(webRes.body).pipe(res);
+        } else {
+          res.end();
+        }
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Internal dev server error', message: err.message, fallback: true }));

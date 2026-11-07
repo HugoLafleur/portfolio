@@ -159,20 +159,82 @@
     // When LLM feature flag is enabled
     if (llmActive && window.LLM) {
       const endpoint = P.features?.llmEndpoint || "/api/chat";
-      const [llmRes, localRes] = await Promise.all([
-        window.LLM.queryChatAPI(trimmed, { endpoint }),
-        Promise.resolve(chat.answer(trimmed)),
-      ]);
-      typing.remove();
+      const localRes = chat.answer(trimmed);
+
+      let botBubbleEl = null;
+      let streamBodyEl = null;
+      let accumulatedText = "";
+
+      const onToken = (delta) => {
+        if (!botBubbleEl) {
+          if (typing.parentNode) typing.remove();
+          const tool = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
+          botBubbleEl = message("bot", `<div class="tool-pill">⚡ <code>${tool}</code></div><div class="agent-reply-body"></div>`);
+          append(botBubbleEl);
+          streamBodyEl = botBubbleEl.querySelector(".agent-reply-body");
+        }
+        accumulatedText += delta;
+        const paragraphs = accumulatedText.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+        streamBodyEl.innerHTML = `${paragraphs}<span class="agent-cursor">▌</span>`;
+        log.scrollTop = log.scrollHeight;
+      };
+
+      const llmRes = await window.LLM.queryChatAPI(trimmed, {
+        endpoint,
+        stream: true,
+        onToken,
+      });
+
+      if (typing.parentNode) typing.remove();
 
       if (llmRes.ok) {
-        const paragraphs = llmRes.reply.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("") +
-          `<p class="ai-note">AI-generated from my profile · may be inaccurate</p>`;
-        addReply({
-          tool: `${llmRes.provider || "cohere"}:${llmRes.model || "command-r7b"}`,
-          html: paragraphs,
-          actions: localRes.id !== "fallback" ? localRes.actions : [],
-        });
+        const fullText = accumulatedText.trim() || llmRes.reply?.trim() || "";
+        if (!botBubbleEl && fullText) {
+          // If response came back non-streaming (e.g. JSON)
+          const paragraphs = fullText.split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("") +
+            `<p class="ai-note">AI-generated from my profile · may be inaccurate</p>`;
+          addReply({
+            tool: `${llmRes.provider || "cohere"}:${llmRes.model || "command-r7b"}`,
+            html: paragraphs,
+            actions: localRes.id !== "fallback" ? localRes.actions : [],
+          });
+          return;
+        }
+
+        if (streamBodyEl) {
+          const cursor = streamBodyEl.querySelector(".agent-cursor");
+          if (cursor) cursor.remove();
+
+          const note = document.createElement("p");
+          note.className = "ai-note";
+          note.textContent = "AI-generated from my profile · may be inaccurate";
+          streamBodyEl.appendChild(note);
+
+          if (localRes.id !== "fallback" && localRes.actions?.length) {
+            const bar = document.createElement("div");
+            bar.className = "agent-actions";
+            for (const a of localRes.actions.map(resolveAction).filter(Boolean)) {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.textContent = `❯ ${a.label}`;
+              b.onclick = a.run;
+              bar.appendChild(b);
+            }
+            botBubbleEl.querySelector(".agent-bubble").appendChild(bar);
+          }
+          log.scrollTop = log.scrollHeight;
+          return;
+        }
+      }
+
+      // If streaming failed mid-flight after emitting partial tokens
+      if (botBubbleEl) {
+        const cursor = streamBodyEl?.querySelector(".agent-cursor");
+        if (cursor) cursor.remove();
+        const errNote = document.createElement("p");
+        errNote.className = "ai-note";
+        errNote.textContent = "Stream interrupted · AI-generated from my profile";
+        streamBodyEl?.appendChild(errNote);
         return;
       }
 

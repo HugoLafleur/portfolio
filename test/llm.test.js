@@ -197,3 +197,137 @@ test("onRequestPost sends Cohere v2 payload and handles upstream success & rate 
   assert.equal(rateLimited.status, 429);
   assert.equal((await rateLimited.json()).fallback, true);
 });
+
+test("createDeltaTransformStream extracts deltas and strips citations and metadata", async () => {
+  const { createDeltaTransformStream } = await import("../functions/api/chat.js");
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const rawChunks = [
+    'event: message-start\ndata: {"type":"message-start","delta":{"message":{"role":"assistant"}}}\n\n',
+    'event: content-delta\ndata: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":"Hello"}}}}',
+    '\n\nevent: citation-start\ndata: {"type":"citation-start","citations":[{"id":"doc1"}]}\n\n',
+    'event: content-delta\ndata: {"type":"content-delta","index":0,"delta":{"message":{"content":{"text":" world"}}}}',
+    '\n\nevent: message-end\ndata: {"type":"message-end"}\n\n',
+  ];
+
+  const sourceStream = new ReadableStream({
+    start(controller) {
+      for (const chunk of rawChunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+
+  const transformed = sourceStream.pipeThrough(createDeltaTransformStream());
+  const reader = transformed.getReader();
+  let output = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    output += decoder.decode(value);
+  }
+
+  assert.equal(output, 'data: {"delta":"Hello"}\n\ndata: {"delta":" world"}\n\ndata: [DONE]\n\n');
+});
+
+test("LLM.readSSEStream accumulates tokens and calls onToken callback", async () => {
+  const encoder = new TextEncoder();
+  const sseChunks = [
+    'data: {"delta":"Hello"}\n\n',
+    'data: {"delta":" from"}\n\n',
+    'data: {"delta":" streaming"}\n\n',
+    'data: [DONE]\n\n',
+  ];
+
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const c of sseChunks) controller.enqueue(encoder.encode(c));
+      controller.close();
+    },
+  });
+
+  const tokens = [];
+  const reply = await LLM.readSSEStream(stream, (delta) => tokens.push(delta));
+  assert.equal(reply, "Hello from streaming");
+  assert.deepEqual(tokens, ["Hello", " from", " streaming"]);
+});
+
+test("queryChatAPI streams tokens via SSE when stream/onToken is provided", async () => {
+  const encoder = new TextEncoder();
+  const tokens = [];
+
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"delta":"Director"}\n\n'));
+      controller.enqueue(encoder.encode('data: {"delta":", AI"}\n\n'));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+
+  const res = await LLM.queryChatAPI("role", {
+    onToken: (d) => tokens.push(d),
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: stream,
+    }),
+  });
+
+  assert.equal(res.ok, true);
+  assert.equal(res.reply, "Director, AI");
+  assert.deepEqual(tokens, ["Director", ", AI"]);
+  assert.equal(res.provider, "cohere");
+  assert.equal(res.fallback, false);
+});
+
+test("onRequestPost supports stream: true returning SSE Response", async () => {
+  const { onRequestPost } = await import("../functions/api/chat.js");
+  const encoder = new TextEncoder();
+  let capturedOpts = null;
+
+  const mockUpstream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('event: content-delta\ndata: {"type":"content-delta","delta":{"message":{"content":{"text":"Streamed"}}}}'));
+      controller.enqueue(encoder.encode('\n\nevent: content-delta\ndata: {"type":"content-delta","delta":{"message":{"content":{"text":" answer"}}}}'));
+      controller.enqueue(encoder.encode('\n\nevent: message-end\ndata: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+
+  const streamRes = await onRequestPost({
+    request: makeReq({ message: "What is your current role?", stream: true }),
+    env: { COHERE_API_KEY: "test-key-123" },
+    fetchImpl: async (_url, opts) => {
+      capturedOpts = opts;
+      return {
+        ok: true,
+        status: 200,
+        body: mockUpstream,
+      };
+    },
+  });
+
+  assert.equal(streamRes.status, 200);
+  assert.equal(streamRes.headers.get("content-type"), "text/event-stream; charset=utf-8");
+  assert.equal(streamRes.headers.get("cache-control"), "no-cache, no-transform");
+
+  const sent = JSON.parse(capturedOpts.body);
+  assert.equal(sent.stream, true);
+
+  const reader = streamRes.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value);
+  }
+
+  assert.ok(text.includes('data: {"delta":"Streamed"}\n\n'));
+  assert.ok(text.includes('data: {"delta":" answer"}\n\n'));
+  assert.ok(text.includes('data: [DONE]\n\n'));
+});

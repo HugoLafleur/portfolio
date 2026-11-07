@@ -83,6 +83,62 @@ export function buildDocuments(P = PROFILE) {
   ];
 }
 
+/**
+ * Transforms a raw Cohere v2 SSE stream into normalized delta events:
+ * `data: {"delta": "..."}\n\n`
+ * Drops verbose citations, usage stats, and message boundaries.
+ * Emits `data: [DONE]\n\n` when complete.
+ */
+export function createDeltaTransformStream() {
+  let buffer = "";
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  return new TransformStream({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // keep trailing incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const jsonStr = trimmed.slice(5).trim();
+        if (!jsonStr || jsonStr === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.type === "content-delta") {
+            const text = parsed.delta?.message?.content?.text;
+            if (text) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+            }
+          }
+        } catch {
+          // ignore malformed lines
+        }
+      }
+    },
+    flush(controller) {
+      if (buffer.trim().startsWith("data:")) {
+        const jsonStr = buffer.trim().slice(5).trim();
+        if (jsonStr && jsonStr !== "[DONE]") {
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.type === "content-delta") {
+              const text = parsed.delta?.message?.content?.text;
+              if (text) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+              }
+            }
+          } catch {}
+        }
+      }
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+    },
+  });
+}
+
 export async function onRequestPost({ request, env, fetchImpl = fetch }) {
   if (!isSameOrigin(request)) return json({ error: "Forbidden", fallback: true }, 403);
 
@@ -104,6 +160,8 @@ export async function onRequestPost({ request, env, fetchImpl = fetch }) {
     return json({ error: "COHERE_API_KEY is not configured", fallback: true }, 503);
   }
 
+  const wantStream = Boolean(body?.stream);
+
   try {
     const res = await fetchImpl("https://api.cohere.com/v2/chat", {
       method: "POST",
@@ -123,11 +181,24 @@ export async function onRequestPost({ request, env, fetchImpl = fetch }) {
         documents: buildDocuments(),
         max_tokens: 250,
         temperature: 0.2,
+        stream: wantStream,
       }),
     });
 
     if (!res.ok) {
       return json({ error: `Cohere API error (${res.status})`, fallback: true }, res.status);
+    }
+
+    if (wantStream) {
+      const transformedStream = res.body.pipeThrough(createDeltaTransformStream());
+      return new Response(transformedStream, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+        },
+      });
     }
 
     const data = await res.json();
