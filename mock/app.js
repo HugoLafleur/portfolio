@@ -166,7 +166,8 @@
       typing.remove();
 
       if (llmRes.ok) {
-        const paragraphs = llmRes.reply.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+        const paragraphs = llmRes.reply.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("") +
+          `<p class="ai-note">AI-generated from my profile · may be inaccurate</p>`;
         addReply({
           tool: `${llmRes.provider || "cohere"}:${llmRes.model || "command-r7b"}`,
           html: paragraphs,

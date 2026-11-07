@@ -65,7 +65,6 @@
         reply: data.reply,
         model: data.model || "command-r7b",
         provider: data.provider || "cohere",
-        citations: data.citations || [],
         fallback: false,
       };
     } catch (err) {

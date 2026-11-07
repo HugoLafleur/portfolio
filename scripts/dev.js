@@ -43,9 +43,10 @@ function loadEnv() {
   // 2. Optional: Try 1Password CLI if COHERE_API_KEY is not already set
   if (!process.env.COHERE_API_KEY) {
     try {
-      const opKey = execSync('op item get "Cohere" --fields label=apikey-default --reveal 2>/dev/null', {
+      const opCmd = fs.existsSync('/usr/local/bin/op') ? '/usr/local/bin/op' : 'op';
+      const opKey = execSync(`${opCmd} item get Cohere --reveal --field apikey-default 2>/dev/null`, {
         encoding: 'utf8',
-        timeout: 1500,
+        timeout: 3000,
       }).trim();
       if (opKey) {
         process.env.COHERE_API_KEY = opKey;
@@ -87,7 +88,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const rawBody = Buffer.concat(chunks).toString('utf8');
-        const webReq = new Request(`http://localhost:${PORT}/api/chat`, {
+        const webReq = new Request(`http://${req.headers.host || `localhost:${PORT}`}/api/chat`, {
           method: 'POST',
           headers: req.headers,
           body: rawBody,

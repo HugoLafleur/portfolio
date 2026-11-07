@@ -403,6 +403,11 @@ body.agent-collapsed .agent-edge-tab {
   color: #38bdf8;
   font-weight: 500;
 }
+.agent-bubble p.ai-note {
+  margin-top: 8px;
+  font-size: 10.5px;
+  opacity: 0.6;
+}
 
 /* Action buttons in bubble */
 .agent-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }

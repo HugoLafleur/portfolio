@@ -21,6 +21,8 @@ You can test and toggle it without editing code:
 - **Via Code:** Toggle `features.llm: true` in `mock/data.js`.
 - **Automatic Fallback:** If the API key is missing or the backend is offline, the chat automatically falls back to the local profile engine.
 
+**Before setting `COHERE_API_KEY` in production:** the flag only gates the UI — `/api/chat` is public. The function rejects requests whose `Origin` doesn't match the site, but that is easy to forge outside a browser. Add a Cloudflare rate-limiting rule (Security → WAF → Rate limiting rules) on `/api/chat`, e.g. 10 requests per minute per IP.
+
 ## Usage
 
 ```bash

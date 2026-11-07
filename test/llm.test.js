@@ -4,7 +4,9 @@ const LLM = require("../mock/llm.js");
 const P = require("../mock/data.js");
 
 const fakeStorage = (map = {}) => ({ getItem: (k) => (k in map ? map[k] : null) });
-const makeReq = (body) => ({
+const makeReq = (body, origin = "https://site.test") => ({
+  url: "https://site.test/api/chat",
+  headers: new Headers(origin ? { Origin: origin } : {}),
   json: async () => {
     if (typeof body === "string") return JSON.parse(body);
     return body;
@@ -124,6 +126,13 @@ test("buildDocuments produces valid Cohere v2 documents covering all companies i
 test("onRequestPost validates input and requires COHERE_API_KEY", async () => {
   const { onRequestPost } = await import("../functions/api/chat.js");
 
+  // Cross-site or missing Origin
+  const crossSite = await onRequestPost({ request: makeReq({ message: "Hi" }, "https://evil.test"), env: { COHERE_API_KEY: "k" } });
+  assert.equal(crossSite.status, 403);
+  assert.equal((await crossSite.json()).fallback, true);
+  const noOrigin = await onRequestPost({ request: makeReq({ message: "Hi" }, null), env: { COHERE_API_KEY: "k" } });
+  assert.equal(noOrigin.status, 403);
+
   // Bad JSON
   const badJson = await onRequestPost({ request: makeReq("{not json"), env: { COHERE_API_KEY: "k" } });
   assert.equal(badJson.status, 400);
@@ -177,6 +186,7 @@ test("onRequestPost sends Cohere v2 payload and handles upstream success & rate 
   const body = await okRes.json();
   assert.equal(body.fallback, false);
   assert.equal(body.reply, "I am Director, AI Engineering Management at ServiceNow.");
+  assert.equal("citations" in body, false);
 
   // Upstream 429 rate-limit -> signals fallback
   const rateLimited = await onRequestPost({
