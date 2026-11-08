@@ -70,8 +70,10 @@ test("replies render data, not 'undefined'", () => {
   for (const r of replies) assert.doesNotMatch(r.html, /undefined|NaN|\[object/, r.id);
 });
 
-test("replies speak in first person, as approved", () => {
-  for (const r of replies) assert.doesNotMatch(r.html, /\bHugo(?:'s| is| has| led)\b/, r.id);
+test("replies speak in third person about Hugo as an assistant", () => {
+  for (const r of replies) {
+    assert.doesNotMatch(r.html, /\b(?:I am|I've|my work|I hold|I lead|I speak|reach me)\b/i, r.id);
+  }
 });
 
 test("replies only state the current role from the profile", () => {

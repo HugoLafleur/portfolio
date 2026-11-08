@@ -120,6 +120,9 @@ test("buildDocuments produces valid Cohere v2 documents covering all companies i
   for (const job of P.experience) {
     assert.ok(allText.includes(job.company), `missing company ${job.company} in grounding docs`);
   }
+  for (const d of docs) {
+    assert.doesNotMatch(d.data.text, /\b(keeps me|I surface|my bike|my kids|my work)\b/i, `${d.id} contains 1st-person phrasing`);
+  }
 });
 
 test("onRequestPost validates input and requires COHERE_API_KEY", async () => {
@@ -166,7 +169,7 @@ test("onRequestPost sends Cohere v2 payload and handles upstream success & rate 
         ok: true,
         status: 200,
         json: async () => ({
-          message: { content: [{ text: "I am Director, AI Engineering Management at ServiceNow." }], citations: [] },
+          message: { content: [{ text: "Hugo is Director, AI Engineering Management at ServiceNow." }], citations: [] },
         }),
       };
     },
@@ -182,9 +185,14 @@ test("onRequestPost sends Cohere v2 payload and handles upstream success & rate 
   assert.ok(Array.isArray(sent.documents) && sent.documents[0].data.text);
   assert.equal(sent.messages.at(-1).content, "What is your current role?");
 
+  const systemMsg = sent.messages.find((m) => m.role === "system");
+  assert.ok(systemMsg.content.includes("Portfolio Assistant"));
+  assert.ok(systemMsg.content.includes("third person"));
+  assert.ok(systemMsg.content.includes("Language"));
+
   const body = await okRes.json();
   assert.equal(body.fallback, false);
-  assert.equal(body.reply, "I am Director, AI Engineering Management at ServiceNow.");
+  assert.equal(body.reply, "Hugo is Director, AI Engineering Management at ServiceNow.");
   assert.equal("citations" in body, false);
 
   // Upstream 429 rate-limit -> signals fallback

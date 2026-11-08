@@ -110,7 +110,7 @@
   const message = (who, inner) => {
     const d = document.createElement("div");
     d.className = `agent-msg ${who}`;
-    d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ hugo-twin"}</div><div class="agent-bubble">${inner}</div>`;
+    d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ Portfolio Assistant"}</div><div class="agent-bubble">${inner}</div>`;
     return d;
   };
   const appendActions = (d, actions = []) => {
@@ -179,12 +179,12 @@
       ensureBubble();
       update(() => {
         replyBody.innerHTML = paragraphs(llmRes.reply + (llmRes.truncated ? "…" : "")) +
-          note("AI-generated from my profile · may be inaccurate");
+          note("AI-generated from Hugo's profile · may be inaccurate");
         if (localRes.id !== "fallback") appendActions(bubble, localRes.actions);
       });
     } else if (bubble) {
       // Streaming failed after some tokens arrived: keep what we have.
-      update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from my profile"); });
+      update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from Hugo's profile"); });
     } else {
       // Graceful fallback to local profile data if LLM is offline or unconfigured
       typing.remove();
