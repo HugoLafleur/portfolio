@@ -188,7 +188,7 @@ test("onRequestPost sends Cohere v2 payload and handles upstream success & rate 
   const systemMsg = sent.messages.find((m) => m.role === "system");
   assert.ok(systemMsg.content.includes("Portfolio Assistant"));
   assert.ok(systemMsg.content.includes("third person"));
-  assert.ok(systemMsg.content.includes("Language"));
+  assert.ok(/language/i.test(systemMsg.content));
 
   const body = await okRes.json();
   assert.equal(body.fallback, false);
