@@ -80,3 +80,16 @@ test("replies only state the current role from the profile", () => {
   const r = chat.answer("What is your current role?");
   assert.match(r.html, new RegExp(P.currentRole));
 });
+
+test("fallback answers in the visitor's language", () => {
+  const en = chat.answer("What is your favourite cheese?");
+  assert.equal(en.id, "fallback");
+  assert.match(en.html, /scripted demo/);
+
+  for (const q of ["Quelle est ta couleur préférée ?", "Peux-tu me parler de ton fromage préféré ?", "Quel temps fait-il à Montréal ?"]) {
+    const fr = chat.answer(q);
+    assert.equal(fr.id, "fallback", q);
+    assert.match(fr.html, /démo scriptée/, q);
+    assert.doesNotMatch(fr.html, /scripted demo/, q);
+  }
+});

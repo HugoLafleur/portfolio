@@ -15,6 +15,9 @@
   const year = (dates) => dates.match(/\d{4}/g) || [];
   const span = (dates) => { const [a, b] = year(dates); return b && b !== a ? `${a}–${b}` : dates.includes("Present") ? `${a}–` : a; };
   const list = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+  // Words that are French but not English. Accents are a strong signal on their own.
+  const FRENCH_WORDS = new Set(["bonjour", "salut", "merci", "je", "vous", "tu", "est", "les", "des", "une", "quel", "quelle", "parle", "pour", "avec", "dans", "votre", "ton", "sur"]);
+  const isFrench = (raw, words) => /[àâçéèêëîïôùûœ]/i.test(raw) || [...words].some((w) => FRENCH_WORDS.has(w));
 
   function createChat(P) {
     const roles = (company) => P.experience.filter((j) => j.company === company).flatMap((j) => j.roles);
@@ -156,10 +159,17 @@
       },
     ];
 
-    const fallback = {
-      id: "fallback", tool: "sys:no_match",
-      html: `<p>I'm a scripted demo for now, so I only have information from Hugo's profile data.</p><p>Try asking about Hugo's <b>AI work</b>, how he <b>leads teams</b>, his <b>SRE background</b>, or type <code>/resume</code>.</p>`,
-      actions: ["email"],
+    const fallbacks = {
+      en: {
+        id: "fallback", tool: "sys:no_match",
+        html: `<p>I'm a scripted demo for now, so I only have information from Hugo's profile data.</p><p>Try asking about Hugo's <b>AI work</b>, how he <b>leads teams</b>, his <b>SRE background</b>, or type <code>/resume</code>.</p>`,
+        actions: ["email"],
+      },
+      fr: {
+        id: "fallback", tool: "sys:no_match",
+        html: `<p>Je suis une démo scriptée pour l'instant, donc je n'ai que les informations du profil de Hugo.</p><p>Essayez de demander son <b>travail en IA</b>, sa façon de <b>diriger des équipes</b>, son <b>parcours en SRE</b>, ou tapez <code>/resume</code>.</p>`,
+        actions: ["email"],
+      },
     };
 
     function answer(query) {
@@ -171,7 +181,7 @@
         const score = it.keys.filter((k) => words.has(k)).length;
         if (score > bestScore) { best = it; bestScore = score; }
       }
-      if (!best) return { ...fallback };
+      if (!best) return { ...fallbacks[isFrench(raw, words) ? "fr" : "en"] };
       const r = best.reply();
       return { id: best.id, tool: best.tool, html: r.html, actions: r.actions || [] };
     }
