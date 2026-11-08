@@ -70,11 +70,26 @@ test("replies render data, not 'undefined'", () => {
   for (const r of replies) assert.doesNotMatch(r.html, /undefined|NaN|\[object/, r.id);
 });
 
-test("replies speak in first person, as approved", () => {
-  for (const r of replies) assert.doesNotMatch(r.html, /\bHugo(?:'s| is| has| led)\b/, r.id);
+test("replies speak in third person about Hugo as an assistant", () => {
+  for (const r of replies) {
+    assert.doesNotMatch(r.html, /\b(?:I am|I've|my work|I hold|I lead|I speak|reach me)\b/i, r.id);
+  }
 });
 
 test("replies only state the current role from the profile", () => {
   const r = chat.answer("What is your current role?");
   assert.match(r.html, new RegExp(P.currentRole));
+});
+
+test("fallback answers in the visitor's language", () => {
+  const en = chat.answer("What is your favourite cheese?");
+  assert.equal(en.id, "fallback");
+  assert.match(en.html, /scripted demo/);
+
+  for (const q of ["Quelle est ta couleur préférée ?", "Peux-tu me parler de ton fromage préféré ?", "Quel temps fait-il à Montréal ?"]) {
+    const fr = chat.answer(q);
+    assert.equal(fr.id, "fallback", q);
+    assert.match(fr.html, /démo scriptée/, q);
+    assert.doesNotMatch(fr.html, /scripted demo/, q);
+  }
 });

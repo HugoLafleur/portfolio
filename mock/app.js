@@ -110,38 +110,130 @@
   const message = (who, inner) => {
     const d = document.createElement("div");
     d.className = `agent-msg ${who}`;
-    d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ hugo-twin"}</div><div class="agent-bubble">${inner}</div>`;
+    d.innerHTML = `<div class="agent-msg-meta">${who === "user" ? "❯ user" : "◈ Portfolio Assistant"}</div><div class="agent-bubble">${inner}</div>`;
     return d;
   };
-  const addReply = ({ tool, html: markup, actions }) => {
-    const d = message("bot", `${tool ? `<div class="tool-pill">⚡ <code>${tool}</code></div>` : ""}${markup}`);
-    if (actions.length) {
-      const bar = document.createElement("div");
-      bar.className = "agent-actions";
-      for (const a of actions.map(resolveAction).filter(Boolean)) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = `❯ ${a.label}`;
-        b.onclick = a.run;
-        bar.appendChild(b);
-      }
-      d.querySelector(".agent-bubble").appendChild(bar);
+  const appendActions = (d, actions = []) => {
+    if (!actions.length) return;
+    const bar = document.createElement("div");
+    bar.className = "agent-actions";
+    for (const a of actions.map(resolveAction).filter(Boolean)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `❯ ${a.label}`;
+      b.onclick = a.run;
+      bar.appendChild(b);
     }
-    append(d);
+    d.querySelector(".agent-bubble").appendChild(bar);
+  };
+  const addReply = ({ tool, isFallback, html: markup, actions = [] }) => {
+    const pillClass = isFallback ? "tool-pill fallback" : "tool-pill";
+    const d = message("bot", `${tool ? `<div class="${pillClass}">⚡ <code>${tool}</code></div>` : ""}${markup}`);
+    appendActions(d, actions);
+    return append(d);
+  };
+  // Follow new content only if the visitor hasn't scrolled up to reread something.
+  const isNearBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const update = (fn) => {
+    const follow = isNearBottom();
+    fn();
+    if (follow) log.scrollTop = log.scrollHeight;
   };
 
-  const ask = (q) => {
-    if (!q || !q.trim()) return;
-    const res = chat.answer(q);
-    if (res.id === "clear") { log.innerHTML = ""; addReply(chat.answer("/help")); return; }
-    append(message("user", esc(q)));
+  /* ─────────────── Feature Flag & LLM Mode ─────────────── */
+  const llmActive = window.LLM ? window.LLM.isLLMEnabled(P) : false;
+  const llmLabel = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
+  if (llmActive) {
+    $("#agent-mode-badge").innerHTML = `mode: <b class="llm-pill">${esc(llmLabel)}</b>`;
+    $("#agent-tools-badge").textContent = "tools: [grounding, cohere-v2-chat]";
+  }
+
+  const paragraphs = (text) => text.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
+  const note = (text) => `<p class="ai-note">${text}</p>`;
+
+  // Streams the LLM reply into one bubble, created on the first token (or on completion for a JSON reply).
+  // Falls back to the scripted answer if the LLM fails before any token arrives.
+  const askLLM = async (question, typing) => {
+    const localRes = chat.answer(question);
+    let bubble = null;
+    let replyBody = null;
+    let partial = "";
+    const ensureBubble = () => {
+      if (bubble) return;
+      typing.remove();
+      bubble = addReply({ tool: llmLabel, html: `<div class="agent-reply-body"></div>` });
+      replyBody = bubble.querySelector(".agent-reply-body");
+    };
+
+    const llmRes = await window.LLM.queryChatAPI(question, {
+      endpoint: P.features?.llmEndpoint || "/api/chat",
+      stream: true,
+      onToken: (_delta, full) => {
+        partial = full;
+        ensureBubble();
+        update(() => { replyBody.innerHTML = `${paragraphs(full)}<span class="agent-cursor">▌</span>`; });
+      },
+    });
+
+    if (llmRes.ok) {
+      ensureBubble();
+      update(() => {
+        replyBody.innerHTML = paragraphs(llmRes.reply + (llmRes.truncated ? "…" : "")) +
+          note("AI-generated from Hugo's profile · may be inaccurate");
+        if (localRes.id !== "fallback") appendActions(bubble, localRes.actions);
+      });
+    } else if (bubble) {
+      // Streaming failed after some tokens arrived: keep what we have.
+      update(() => { replyBody.innerHTML = paragraphs(partial) + note("Stream interrupted · AI-generated from Hugo's profile"); });
+    } else {
+      // Graceful fallback to local profile data if LLM is offline or unconfigured
+      typing.remove();
+      addReply({ tool: "fallback:offline_profile", isFallback: true, html: localRes.html, actions: localRes.actions });
+    }
+  };
+
+  // Default scripted engine mode (llm flag false), with a short fake "thinking" delay.
+  const askScripted = (question, typing) => new Promise((resolve) => {
+    setTimeout(() => { typing.remove(); addReply(chat.answer(question)); resolve(); }, 350 + Math.random() * 250);
+  });
+
+  let isAsking = false;
+  const ask = async (q) => {
+    const question = String(q || "").trim();
+    if (!question || isAsking) return;
+
+    // Slash commands (/clear, /resume, /contact, etc.) are always handled instantly locally
+    if (question.startsWith("/")) {
+      const res = chat.answer(question);
+      if (res.id === "clear") { log.innerHTML = ""; addReply(chat.answer("/help")); return; }
+      append(message("user", esc(question)));
+      addReply(res);
+      return;
+    }
+
+    isAsking = true;
+    append(message("user", esc(question)));
     const typing = append(message("bot", `<div class="agent-typing"><span></span><span></span><span></span></div>`));
-    setTimeout(() => { typing.remove(); addReply(res); }, 350 + Math.random() * 250);
+    // aria-busy stops screen readers from announcing every token; the full reply is read once at the end.
+    log.setAttribute("aria-busy", "true");
+    try {
+      await (llmActive ? askLLM(question, typing) : askScripted(question, typing));
+    } finally {
+      typing.remove();
+      log.removeAttribute("aria-busy");
+      isAsking = false;
+    }
   };
 
   html("#agent-chips", window.Chat.suggestions.map((s) => `<button type="button" data-q="${esc(s.query)}">${esc(s.label)}</button>`).join(""));
   $("#agent-chips").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) ask(b.dataset.q); });
-  $("#agent-form").addEventListener("submit", (e) => { e.preventDefault(); ask(input.value); input.value = ""; });
+  // While a reply is in flight, keep the typed text instead of clearing it unsent.
+  $("#agent-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (isAsking) return;
+    ask(input.value);
+    input.value = "";
+  });
   addReply(chat.answer("/help"));
 
   /* ─────────────── Global actions & shortcuts ─────────────── */

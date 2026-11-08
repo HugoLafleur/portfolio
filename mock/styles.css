@@ -394,6 +394,31 @@ body.agent-collapsed .agent-edge-tab {
   border-radius: 4px;
   margin-bottom: 6px;
 }
+.tool-pill.fallback {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.llm-pill {
+  color: #38bdf8;
+  font-weight: 500;
+}
+.agent-bubble p.ai-note {
+  margin-top: 8px;
+  font-size: 10.5px;
+  opacity: 0.6;
+}
+.agent-cursor {
+  display: inline-block;
+  color: var(--agent-accent);
+  font-weight: 700;
+  margin-left: 2px;
+  animation: agent-blink 0.8s infinite;
+}
+@keyframes agent-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
 
 /* Action buttons in bubble */
 .agent-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }

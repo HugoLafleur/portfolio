@@ -19,11 +19,20 @@ const PROFILE = {
   // Close paraphrase of the LinkedIn "Summary" section.
   resumeSummary:
     "Technology practitioner in software development, AI, DevOps and SRE with ~8 years in management positions. " +
-    "Remaining hands-on keeps me connected to execution teams and their complex challenges; pairing that understanding " +
-    "with storytelling and insightful data, I surface critical issues to upper leadership — leading to better-informed " +
+    "Remaining hands-on keeps him connected to execution teams and their complex challenges; pairing that understanding " +
+    "with storytelling and insightful data, he surfaces critical issues to upper leadership — leading to better-informed " +
     "decisions that improved deployment success rate and team engagement.",
 
   topSkills: ["Splunk Enterprise", "Business Storytelling", "Organizational Leadership"],
+
+  // Feature Flags
+  features: {
+    // Default enabled. Can be overridden via URL (?llm=0) or localStorage.setItem('feature:llm', 'false')
+    llm: true,
+    llmProvider: "cohere",
+    llmModel: "command-r7b-12-2024",
+    llmEndpoint: "/api/chat",
+  },
 
   // Technologies explicitly named in the experience section of the profile.
   tech: [
@@ -46,9 +55,9 @@ const PROFILE = {
   },
 
   offHours: [
-    "Riding my bike to the climbing gym",
-    "Getting beaten at board games by my kids",
-    "In the wood workshop trying to make something",
+    "Biking to the climbing gym",
+    "Playing board games with his kids",
+    "Woodworking in the workshop",
   ],
 
   experience: [
@@ -185,7 +194,7 @@ const PROFILE = {
       outline: [
         "Automated performance dashboards before 'observability' was a word.",
         "Rolling out Prometheus, Grafana, Dynatrace and Sumo Logic at Octave Group.",
-        "What I'd do the same — and differently — today.",
+        "What he would do the same — and differently — today.",
       ],
     },
     {
