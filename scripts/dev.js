@@ -145,8 +145,8 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`\n⚡ Portfolio dev server listening on http://localhost:${PORT}`);
   if (process.env.COHERE_API_KEY) {
-    console.log(`🤖 Cohere LLM: ACTIVE (API Key loaded)`);
-    console.log(`👉 Test live Cohere responses: http://localhost:${PORT}/?llm=1\n`);
+    console.log(`🤖 Cohere LLM: ACTIVE (Default enabled)`);
+    console.log(`👉 Site URL: http://localhost:${PORT} (or force offline mode: ?llm=0)\n`);
   } else {
     console.log(`ℹ️  Cohere LLM: UNCONFIGURED (Running in offline fallback mode)`);
     console.log(`   To activate: sign in to 1Password ('op signin') or add COHERE_API_KEY to a .env file.\n`);

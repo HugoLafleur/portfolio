@@ -13,12 +13,12 @@ Personal site for Hugo Lafleur: an editorial résumé and writing page, with a c
 
 ## LLM Feature Flag
 
-The LLM integration is disabled by default for zero API cost and 100% offline reliability.
+The LLM integration is enabled by default (Cohere `command-r7b-12-2024` via Cloudflare Pages Function `/api/chat`).
 
 You can test and toggle it without editing code:
-- **Via URL:** Append `?llm=1` to test with LLM enabled, or `?llm=0` to force scripted mode.
-- **Via Console:** `localStorage.setItem('feature:llm', 'true')` (or `'false'`).
-- **Via Code:** Toggle `features.llm: true` in `mock/data.js`.
+- **Via URL:** Append `?llm=0` to force offline scripted mode, or `?llm=1` to ensure LLM mode.
+- **Via Console:** `localStorage.setItem('feature:llm', 'false')` (or `'true'`).
+- **Via Code:** Toggle `features.llm: false` in `mock/data.js`.
 - **Automatic Fallback:** If the API key is missing or the backend is offline, the chat automatically falls back to the local profile engine.
 
 **Before setting `COHERE_API_KEY` in production:** the flag only gates the UI — `/api/chat` is public. The function rejects requests whose `Origin` doesn't match the site, but that is easy to forge outside a browser. Add a Cloudflare rate-limiting rule (Security → WAF → Rate limiting rules) on `/api/chat`, e.g. 10 requests per minute per IP.

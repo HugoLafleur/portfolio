@@ -13,9 +13,9 @@ const makeReq = (body, origin = "https://site.test") => ({
   },
 });
 
-test("LLM feature flag defaults to false in data.js", () => {
-  assert.equal(P.features.llm, false);
-  assert.equal(LLM.isLLMEnabled(P), false);
+test("LLM feature flag defaults to true in data.js", () => {
+  assert.equal(P.features.llm, true);
+  assert.equal(LLM.isLLMEnabled(P), true);
 });
 
 test("LLM feature flag priority: URL ?llm > localStorage > profile.features.llm", () => {

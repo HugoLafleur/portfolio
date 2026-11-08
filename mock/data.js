@@ -27,8 +27,8 @@ const PROFILE = {
 
   // Feature Flags
   features: {
-    // Default disabled. Can be overridden via URL (?llm=1) or localStorage.setItem('feature:llm', 'true')
-    llm: false,
+    // Default enabled. Can be overridden via URL (?llm=0) or localStorage.setItem('feature:llm', 'false')
+    llm: true,
     llmProvider: "cohere",
     llmModel: "command-r7b-12-2024",
     llmEndpoint: "/api/chat",
