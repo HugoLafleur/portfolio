@@ -34,9 +34,9 @@ export function loadEnv(root) {
   if (!process.env.COHERE_API_KEY) {
     try {
       const opCmd = fs.existsSync('/usr/local/bin/op') ? '/usr/local/bin/op' : 'op';
-      const opKey = execSync(`${opCmd} item get Cohere --reveal --field apikey-default 2>/dev/null`, {
+      const opKey = execSync(`${opCmd} item get Cohere --reveal --field apikey-prod-portfolio 2>/dev/null`, {
         encoding: 'utf8',
-        timeout: 3000,
+        timeout: 10000,
       }).trim();
       if (opKey) {
         process.env.COHERE_API_KEY = opKey;
