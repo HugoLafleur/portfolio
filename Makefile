@@ -4,11 +4,12 @@ PORT ?= 4173
 SRC  := mock
 DIST := dist
 
-.PHONY: build run test clean help
+.PHONY: build run test probe clean help
 
 help:
 	@echo "make run    Serve $(SRC)/ on http://localhost:$(PORT) and open the browser"
 	@echo "make test   Syntax-check scripts and run the test suite"
+	@echo "make probe  Run live injection and language checks against Cohere (needs COHERE_API_KEY, costs API calls)"
 	@echo "make build  Test, then copy the site into $(DIST)/ for deployment"
 	@echo "make clean  Remove $(DIST)/"
 
@@ -26,8 +27,11 @@ run:
 	fi
 
 test:
-	@for f in $(SRC)/*.js functions/api/*.js; do node --check $$f || exit 1; done
+	@for f in $(SRC)/*.js functions/api/*.js scripts/*.js; do node --check $$f || exit 1; done
 	@node --test test/
+
+probe:
+	@node scripts/probe.js
 
 clean:
 	@rm -rf $(DIST)
