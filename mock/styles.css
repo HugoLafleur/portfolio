@@ -183,7 +183,7 @@ main { max-width: 860px; margin: 0 auto; padding: 0 36px; }
 /* ───────── Résumé Paper ───────── */
 .paper { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 40px 44px; }
 .cv-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px; }
-.cv-name { font-family: var(--sans); font-weight: 700; font-size: 38px; line-height: 1; letter-spacing: -.02em; margin: 0 0 6px; }
+.cv-name { font-family: "Hanken Grotesk", var(--sans); font-weight: 700; font-size: 38px; line-height: 1; letter-spacing: -.02em; margin: 0 0 6px -2px; }
 .cv-title { margin: 0; color: var(--muted); font-size: 14px; }
 .cv-contact { list-style: none; padding: 0; margin: 0; text-align: right; font-size: 12.5px; color: var(--muted); }
 .cv-contact a { text-decoration: none; }
@@ -194,12 +194,12 @@ main { max-width: 860px; margin: 0 auto; padding: 0 36px; }
 .cv-summary { margin: 0; font-size: 14px; line-height: 1.6; }
 .job { padding: 12px 0; border-top: 1px solid var(--line); }
 .job:first-of-type { border-top: 0; padding-top: 0; }
-.job-company { font-weight: 600; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.job-company { font-weight: 700; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
 .job-company .loc { font-weight: 400; font-size: 12px; color: var(--muted); }
 .job-note { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 6px; }
 .role { margin-top: 6px; }
 .role-line { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; }
-.role-title { color: var(--text); font-weight: 500; }
+.role-title { color: var(--text); font-weight: 350; }
 .role-dates { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; font-family: var(--mono); }
 .role ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
 .role li { margin: 3px 0; }
