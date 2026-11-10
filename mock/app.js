@@ -96,7 +96,21 @@
     link.download = "Hugo-Lafleur-Resume.pdf";
     link.click();
   };
+  const paper = $("#resume-paper");
+  const cvToggle = $("#cv-toggle");
+  const setResumeOpen = (open) => {
+    paper.classList.toggle("is-collapsed", !open);
+    cvToggle.setAttribute("aria-expanded", String(open));
+    cvToggle.textContent = open ? "Show less ↑" : "Show full résumé ↓";
+  };
+  cvToggle.addEventListener("click", () => setResumeOpen(paper.classList.contains("is-collapsed")));
+  // Jumping to the résumé opens it; jumping anywhere else folds it back up.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (a && a.hash.length > 1) setResumeOpen(a.hash === "#resume");
+  });
   const goTo = (id) => () => {
+    setResumeOpen(id === "resume");
     if (isMobile()) setCollapsed(true);
     document.getElementById(id).scrollIntoView({ behavior: "smooth" });
   };
