@@ -126,9 +126,8 @@
     }
     d.querySelector(".agent-bubble").appendChild(bar);
   };
-  const addReply = ({ tool, isFallback, html: markup, actions = [] }) => {
-    const pillClass = isFallback ? "tool-pill fallback" : "tool-pill";
-    const d = message("bot", `${tool ? `<div class="${pillClass}">⚡ <code>${tool}</code></div>` : ""}${markup}`);
+  const addReply = ({ html: markup, actions = [] }) => {
+    const d = message("bot", markup);
     appendActions(d, actions);
     return append(d);
   };
@@ -142,10 +141,10 @@
 
   /* ─────────────── Feature Flag & LLM Mode ─────────────── */
   const llmActive = window.LLM ? window.LLM.isLLMEnabled(P) : false;
-  const llmLabel = `${P.features?.llmProvider || "cohere"}:${P.features?.llmModel || "command-r7b"}`;
+  const llmModel = P.features?.llmModel || "command-r7b";
+  const llmVendor = (P.features?.llmProvider || "cohere").replace(/^./, (c) => c.toUpperCase());
   if (llmActive) {
-    $("#agent-mode-badge").innerHTML = `mode: <b class="llm-pill">${esc(llmLabel)}</b>`;
-    $("#agent-tools-badge").textContent = "tools: [grounding, cohere-v2-chat]";
+    $("#agent-mode-badge").innerHTML = `Using model: <b class="llm-pill">${esc(llmModel)}</b> (${esc(llmVendor)})`;
   }
 
   const paragraphs = (text) => text.trim().split(/\n{2,}/).map((p) => `<p>${esc(p)}</p>`).join("");
@@ -161,7 +160,7 @@
     const ensureBubble = () => {
       if (bubble) return;
       typing.remove();
-      bubble = addReply({ tool: llmLabel, html: `<div class="agent-reply-body"></div>` });
+      bubble = addReply({ html: `<div class="agent-reply-body"></div>` });
       replyBody = bubble.querySelector(".agent-reply-body");
     };
 
@@ -188,7 +187,7 @@
     } else {
       // Graceful fallback to local profile data if LLM is offline or unconfigured
       typing.remove();
-      addReply({ tool: "fallback:offline_profile", isFallback: true, html: localRes.html, actions: localRes.actions });
+      addReply({ html: localRes.html, actions: localRes.actions });
     }
   };
 
