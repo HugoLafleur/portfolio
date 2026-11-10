@@ -192,6 +192,10 @@ main { max-width: 860px; margin: 0 auto; padding: 0 36px; }
 .cv-h { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 10px; font-family: var(--mono); }
 .cv-h:not(:first-child) { margin-top: 24px; }
 .cv-summary { margin: 0; font-size: 14px; line-height: 1.6; }
+.cv-toggle { margin-top: 24px; }
+.paper.is-collapsed .cv-grid { grid-template-columns: 1fr; }
+.paper.is-collapsed .cv-side, .paper.is-collapsed .cv-main > :nth-child(n+3) { display: none; }
+.paper.is-collapsed .cv-summary { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .job { padding: 12px 0; border-top: 1px solid var(--line); }
 .job:first-of-type { border-top: 0; padding-top: 0; }
 .job-company { font-weight: 700; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
@@ -550,6 +554,11 @@ body.agent-collapsed .agent-edge-tab {
   #resume { padding: 0 !important; }
   .section-head { display: none !important; }
   .paper { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+  .paper.is-collapsed .cv-grid { grid-template-columns: 1fr 180px !important; }
+  .paper.is-collapsed .cv-side { display: block !important; }
+  .paper.is-collapsed .cv-main > :nth-child(n+3) { display: block !important; }
+  .paper.is-collapsed .cv-summary { display: block !important; -webkit-line-clamp: unset; overflow: visible !important; }
+  .cv-toggle { display: none !important; }
   .cv-name { font-size: 24pt !important; }
   .cv-grid { grid-template-columns: 1fr 180px !important; gap: 24px !important; }
   .cv-head { flex-direction: row !important; align-items: flex-end !important; padding-bottom: 12px !important; margin-bottom: 14px !important; }
