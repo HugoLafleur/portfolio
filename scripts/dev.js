@@ -18,6 +18,28 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4173;
 
 loadEnv(ROOT);
 
+// Live reload: browsers hold an SSE connection open on /__reload; any change under mock/ pings them.
+const reloadClients = new Set();
+const RELOAD_SNIPPET = `<script>(() => {
+  const es = new EventSource('/__reload');
+  let dropped = false;
+  es.onmessage = () => location.reload();
+  es.onerror = () => { dropped = true; };
+  es.onopen = () => { if (dropped) location.reload(); };
+})();</script>`;
+
+let reloadTimer = null;
+try {
+  fs.watch(STATIC_DIR, { recursive: true }, () => {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => {
+      for (const client of reloadClients) client.write('data: reload\n\n');
+    }, 50);
+  });
+} catch {
+  console.log('ℹ️  Live reload unavailable (recursive fs.watch is not supported here).');
+}
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -76,6 +98,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/__reload') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    res.write(':ok\n\n');
+    reloadClients.add(res);
+    req.on('close', () => reloadClients.delete(res));
+    return;
+  }
+
   // Static files from mock/
   let filePath = path.join(STATIC_DIR, pathname === '/' ? 'index.html' : pathname);
 
@@ -95,7 +125,13 @@ const server = http.createServer(async (req, res) => {
 
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
+    if (ext === '.html') {
+      fs.readFile(filePath, 'utf8', (readErr, html) => {
+        res.end(readErr ? '' : html.replace('</body>', `${RELOAD_SNIPPET}</body>`));
+      });
+      return;
+    }
     fs.createReadStream(filePath).pipe(res);
   });
 });
@@ -104,7 +140,8 @@ server.listen(PORT, () => {
   console.log(`\n⚡ Portfolio dev server listening on http://localhost:${PORT}`);
   if (process.env.COHERE_API_KEY) {
     console.log(`🤖 Cohere LLM: ACTIVE (Default enabled)`);
-    console.log(`👉 Site URL: http://localhost:${PORT} (or force offline mode: ?llm=0)\n`);
+    console.log(`👉 Site URL: http://localhost:${PORT} (or force offline mode: ?llm=0)`);
+    console.log(`🔄 Live reload: ON (edits under mock/ refresh the page)\n`);
   } else {
     console.log(`ℹ️  Cohere LLM: UNCONFIGURED (Running in offline fallback mode)`);
     console.log(`   To activate: sign in to 1Password ('op signin') or add COHERE_API_KEY to a .env file.\n`);

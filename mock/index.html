@@ -7,7 +7,7 @@
   <!-- Background font loading so it doesn't block rendering -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=National+Park:wght@300..700&family=Abhaya+Libre:wght@400;500;600;700;800&family=Gloock&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,11 +26,6 @@
             <a href="#references">References</a>
             <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle theme" title="Toggle theme">
               <span class="i-sun">☼</span><span class="i-moon">☾</span>
-            </button>
-            <button class="nav-agent-btn" data-action="toggle-agent" title="Toggle Agent Console (⌘B)">
-              <span class="pulse-dot"></span>
-              <span class="nav-agent-txt">Agent</span>
-              <kbd class="key-hint">⌘B</kbd>
             </button>
           </nav>
         </div>
@@ -143,7 +138,6 @@
       <!-- Agent Context / Breadcrumb Bar -->
       <div class="agent-subbar">
         <span class="mono-badge" id="agent-mode-badge">workspace: hugo-lafleur</span>
-        <span class="mono-tools" id="agent-tools-badge">tools: [resume, blog, contacts]</span>
       </div>
 
       <!-- Scrollable Agent Transcript -->
@@ -178,9 +172,10 @@
   </div>
 
   <!-- Floating Edge Button when agent is collapsed -->
-  <button class="agent-edge-tab" data-action="toggle-agent" title="Open Agent Console (⌘B / ⌘K)">
+  <button class="agent-edge-tab" data-action="toggle-agent" title="Open Assistant (⌘B / ⌘K)">
     <span class="agent-gem">◈</span>
-    <span class="edge-txt">Agent Console</span>
+    <span class="edge-txt">Assistant</span>
+    <kbd class="key-hint">⌘B</kbd>
     <span class="pulse-dot"></span>
   </button>
 
