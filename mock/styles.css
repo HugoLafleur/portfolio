@@ -534,8 +534,16 @@ body.agent-collapsed .agent-edge-tab {
 
 /* ───────────────────────── Print Styles (Clean PDF Export) ───────────────────────── */
 @media print {
-  @page { size: letter; margin: 0.45in 0.5in; }
-  html, body { background: #fff !important; color: #111 !important; font-size: 9.6pt; overflow: visible; }
+  @page { size: letter; margin: 0.4in 0.5in; }
+  /* Always print with the light palette, whatever theme the page is showing (the default is dark). */
+  :root, [data-theme="dark"], [data-theme="light"] {
+    --bg: #fff; --surface: #fff; --paper: #fff;
+    --text: #111; --muted: #555; --line: #ddd; --soft: #f2f2f2;
+    --accent: #1e293b; --accent-ink: #fff; --shadow: none;
+  }
+  .paper { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: #fff !important; color: #111 !important; font-size: 8.6pt; line-height: 1.4; overflow: visible; }
   .agent-pane, .agent-edge-tab, .site-header, .hero, #writing, #references, .site-footer, .reader { display: none !important; }
   .content-pane { padding: 0 !important; }
   main { max-width: none !important; padding: 0 !important; }
@@ -544,7 +552,21 @@ body.agent-collapsed .agent-edge-tab {
   .paper { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
   .cv-name { font-size: 24pt !important; }
   .cv-grid { grid-template-columns: 1fr 180px !important; gap: 24px !important; }
-  .job { padding: 6px 0 !important; break-inside: avoid; }
-  .role ul { margin-top: 2px; font-size: 8.8pt; }
+  .cv-head { flex-direction: row !important; align-items: flex-end !important; padding-bottom: 12px !important; margin-bottom: 14px !important; }
+  .cv-contact { text-align: right !important; }
+  .job { padding: 4px 0 !important; break-inside: avoid; }
+  .role ul { margin-top: 1px; font-size: 8pt; }
+  .cv-summary { font-size: 8.8pt !important; line-height: 1.45 !important; }
+  .cv-h:not(:first-child) { margin-top: 12px !important; }
+  .cv-title { font-size: 9.6pt !important; }
+  .cv-contact { font-size: 8.6pt !important; }
+  .job-company { font-size: 10pt !important; }
+  .job-company .loc, .job-note, .role-dates { font-size: 8pt !important; }
+  .role { margin-top: 2px !important; }
+  .role-line { font-size: 9.2pt !important; }
+  .role li { margin: 1px 0 !important; }
+  .tags li { font-size: 8pt !important; padding: 2px 7px !important; }
+  .plain { font-size: 8.8pt !important; }
+  .plain li { padding: 1px 0 !important; }
   .todo { display: none !important; }
 }

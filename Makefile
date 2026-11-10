@@ -4,18 +4,19 @@ PORT ?= 4173
 SRC  := mock
 DIST := dist
 
-.PHONY: build run test probe clean help
+.PHONY: build run test probe pdf clean help
 
 help:
 	@echo "make run    Serve $(SRC)/ on http://localhost:$(PORT) and open the browser"
 	@echo "make test   Syntax-check scripts and run the test suite"
 	@echo "make probe  Run live injection and language checks against Cohere (needs COHERE_API_KEY, costs API calls)"
+	@echo "make pdf    Regenerate $(SRC)/resume.pdf from the print stylesheet (needs Google Chrome)"
 	@echo "make build  Test, then copy the site into $(DIST)/ for deployment"
 	@echo "make clean  Remove $(DIST)/"
 
 build: test clean
 	@mkdir -p $(DIST)
-	@cp $(SRC)/*.html $(SRC)/*.css $(SRC)/*.js $(DIST)/
+	@cp $(SRC)/*.html $(SRC)/*.css $(SRC)/*.js $(SRC)/*.pdf $(DIST)/
 	@echo "Built $(DIST)/:" && ls $(DIST)
 
 run:
@@ -32,6 +33,12 @@ test:
 
 probe:
 	@node scripts/probe.js
+
+CHROME ?= /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+pdf:
+	@"$(CHROME)" --headless=new --disable-gpu --no-pdf-header-footer --virtual-time-budget=5000 --print-to-pdf="$(CURDIR)/$(SRC)/resume.pdf" "file://$(CURDIR)/$(SRC)/index.html" >/dev/null 2>&1
+	@echo "Wrote $(SRC)/resume.pdf"
 
 clean:
 	@rm -rf $(DIST)

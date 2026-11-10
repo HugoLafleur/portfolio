@@ -89,7 +89,13 @@
 
   /* ─────────────── Agent pane: transcript ─────────────── */
   const log = $("#agent-log");
-  const printResume = () => setTimeout(() => window.print(), 50);
+  // A real file download works in every browser (Safari ignores a window.print() it does not like).
+  const downloadResume = () => {
+    const link = document.createElement("a");
+    link.href = "resume.pdf";
+    link.download = "Hugo-Lafleur-Resume.pdf";
+    link.click();
+  };
   const goTo = (id) => () => {
     if (isMobile()) setCollapsed(true);
     document.getElementById(id).scrollIntoView({ behavior: "smooth" });
@@ -97,7 +103,7 @@
   const ACTIONS = {
     resume: { label: "Jump to résumé", run: goTo("resume") },
     writing: { label: "View writing", run: goTo("writing") },
-    pdf: { label: "Download PDF ↓", run: printResume },
+    pdf: { label: "Download PDF ↓", run: downloadResume },
     email: { label: "Email Hugo", run: () => { location.href = `mailto:${P.email}`; } },
     ...Object.fromEntries(links.filter((l) => l.id !== "email").map((l) => [l.id, { label: `${l.name} ↗`, run: () => window.open(l.url, "_blank", "noopener") }])),
   };
@@ -238,7 +244,6 @@
   /* ─────────────── Global actions & shortcuts ─────────────── */
   const handlers = {
     "toggle-agent": () => setCollapsed(!isCollapsed(), { focus: true }),
-    "print-resume": printResume,
     "close-reader": () => reader.close(),
     "toggle-theme": () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; },
   };
