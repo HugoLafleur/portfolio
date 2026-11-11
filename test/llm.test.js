@@ -449,3 +449,16 @@ test("onRequestPost strips visitor-typed question tags", async () => {
   const turn = sent.messages.at(-1).content;
   assert.equal(turn.match(/<\/?visitor_question>/g).length, 2);
 });
+
+test("buildDocuments grounds on the requested language and resolveLang falls back to English", async () => {
+  const { buildDocuments, resolveLang } = await import("../functions/api/chat.js");
+  assert.equal(resolveLang("fr_ca"), "fr_ca");
+  for (const bad of [undefined, null, "fr", "xx", "__proto__", 42]) assert.equal(resolveLang(bad), "en");
+
+  const fr = buildDocuments(P.PROFILES.fr_ca);
+  const text = fr.map((d) => `${d.data.title} ${d.data.text}`).join(" ");
+  assert.match(text, /Compétences clés/);
+  assert.match(text, /Spécialiste des technologies/);
+  assert.doesNotMatch(text, /Top skills/);
+  assert.equal(fr.length, buildDocuments(P).length);
+});

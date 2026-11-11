@@ -39,3 +39,17 @@ test("print stylesheet hides everything but the résumé", () => {
     assert.ok(print.includes(sel), `${sel} is not hidden when printing`);
   }
 });
+
+test("every data-i18n key exists in every language, and each language names an existing PDF", () => {
+  const { PROFILES } = require("../mock/data.js");
+  const keys = new Set([
+    ...[...html.matchAll(/data-i18n="([\w]+)"/g)].map((m) => m[1]),
+    ...[...html.matchAll(/data-i18n-attr="([^"]+)"/g)].flatMap((m) => m[1].split(",").map((p) => p.split(":")[1])),
+    ...[...app.matchAll(/\bt\("(\w+)"\)/g)].map((m) => m[1]),
+  ]);
+  assert.ok(keys.size > 30, "key extraction found too few keys — regex out of date?");
+  for (const [lang, P] of Object.entries(PROFILES)) {
+    for (const k of keys) assert.ok(P.ui[k], `ui key "${k}" missing in ${lang}`);
+    assert.ok(fs.existsSync(path.join(dir, P.ui.pdfFile)), `${lang}: ${P.ui.pdfFile} is missing (run make pdf)`);
+  }
+});

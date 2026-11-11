@@ -114,6 +114,7 @@ body.agent-collapsed .content-pane {
   width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
 }
 .icon-btn:hover { border-color: var(--text); }
+.lang-btn { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--muted); }
 .i-moon { display: none; }
 [data-theme="dark"] .i-sun { display: none; }
 [data-theme="dark"] .i-moon { display: inline; }
@@ -235,6 +236,7 @@ main { max-width: 860px; margin: 0 auto; padding: 0 36px; }
 .ref { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .ref-quote { font-family: var(--serif); font-size: 19.5px; line-height: 1.5; margin: 0; color: var(--muted); }
 .ref-quote::before { content: "“"; color: var(--accent); font-size: 30px; line-height: 0; vertical-align: -10px; margin-right: 2px; }
+:lang(fr) > .ref-quote::before, .ref-quote:lang(fr)::before { content: "«"; }
 .ref-who { display: flex; align-items: center; gap: 10px; margin-top: auto; font-size: 12.5px; }
 .ref-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--soft); border: 1px dashed var(--line); }
 .ref-role { color: var(--muted); font-size: 11.5px; }
@@ -578,4 +580,6 @@ body.agent-collapsed .agent-edge-tab {
   .plain { font-size: 8.8pt !important; }
   .plain li { padding: 1px 0 !important; }
   .todo { display: none !important; }
+  /* French runs ~10% longer; scale the page so the résumé still fits on one Letter page. */
+  :lang(fr) .paper { zoom: 0.94; }
 }

@@ -105,6 +105,7 @@
     try {
       const payload = { message: String(message || "").trim() };
       if (wantStream) payload.stream = true;
+      if (options.lang) payload.lang = options.lang;
 
       const res = await fetchImpl(endpoint, {
         method: "POST",
