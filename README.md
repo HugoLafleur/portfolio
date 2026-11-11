@@ -62,6 +62,6 @@ Edit the Markdown in `content/<lang>/`, then run `make test`. `make run` rebuild
 
 ### Languages
 
-`content/en/` and `content/fr_ca/` must stay in sync in *structure*: same files, same `ui.md` keys, same number of roles, bullets, posts and references, same email, links and flags. Wording is yours to control in each. `make data` (and so `make test`) fails with the list of differences otherwise. The scripted chat engine still only knows English; the LLM chat answers from the active language's profile.
+`content/en/` and `content/fr_ca/` must stay in sync in *structure*: same files, same `ui.md` keys, same number of roles, bullets, posts and references, same email, links and flags. Wording is yours to control in each. `make data` (and so `make test`) fails with the list of differences otherwise. The scripted chat engine (`mock/chat.js`) has keywords and replies for both languages; the LLM chat answers from the active language's profile.
 
 To add AI-drafted translations later, put `translated: ai` in the front matter of `profile.md` or a post, and run `node scripts/build-data.js --allow-missing`: differences become warnings and files missing from `fr_ca/` fall back to the English ones. `make pdf` writes `resume.pdf` and `resume-fr_ca.pdf` (both are checked in; `make test` fails if one is missing).

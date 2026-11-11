@@ -3,10 +3,9 @@
   const PROFILES = window.PROFILES;
   const LANGS = Object.keys(PROFILES);
   const { esc } = window.Chat;
-  // The scripted engine only knows the default (English) profile; post indexes line up across languages.
-  const chat = window.Chat.createChat(window.PROFILE);
   let lang = "en";
   let P = PROFILES[lang];
+  let chat = window.Chat.createChat(P);
   const t = (key) => P.ui[key];
   const $ = (s) => document.querySelector(s);
   const html = (sel, markup) => { $(sel).innerHTML = markup; };
@@ -252,7 +251,7 @@
     }
   };
 
-  const renderChips = () => html("#agent-chips", window.Chat.suggestions.map((s) => `<button type="button" data-q="${esc(s.query)}">${esc(s.label)}</button>`).join(""));
+  const renderChips = () => html("#agent-chips", window.Chat.suggestionsFor(lang).map((s) => `<button type="button" data-q="${esc(s.query)}">${esc(s.label)}</button>`).join(""));
   renderChips();
   $("#agent-chips").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) ask(b.dataset.q); });
   // While a reply is in flight, keep the typed text instead of clearing it unsent.
@@ -284,6 +283,7 @@
   const setLang = (next, { save = true } = {}) => {
     lang = next;
     P = PROFILES[lang];
+    chat = window.Chat.createChat(P);
     if (save) storage.set("lang", lang);
     renderPage();
     applyStrings();
