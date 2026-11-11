@@ -5,6 +5,9 @@
  */
 import PROFILE from "../../mock/data.js";
 
+const PROFILES = PROFILE.PROFILES;
+const DEFAULT_LANG = "en";
+
 const MODEL = PROFILE.features?.llmModel || "command-r7b-12-2024";
 const MAX_MESSAGE_LEN = 300;
 
@@ -129,7 +132,24 @@ const isSameOrigin = (request) => {
 /**
  * Builds Cohere v2 grounding documents ({ id, data: { title, text } }) directly from PROFILE.
  */
+const LABELS = {
+  en: {
+    is: "is", at: "at", contact: "Contact", experience: "Experience", rolesAt: (n, c) => `${n}'s roles at ${c}: `, skillsTitle: "Skills, Education & Languages",
+    topSkills: "Top skills", technologies: "Technologies", education: "Education", languages: "Languages",
+    outside: "Outside of work", outsideText: (n) => `${n}'s activities outside of work: `,
+  },
+  fr_ca: {
+    is: "est", at: "chez", contact: "Courriel", experience: "Expérience", rolesAt: (n, c) => `Rôles de ${n} chez ${c} : `, skillsTitle: "Compétences, formation et langues",
+    topSkills: "Compétences clés", technologies: "Technologies", education: "Formation", languages: "Langues",
+    outside: "Hors du travail", outsideText: (n) => `Activités de ${n} en dehors du travail : `,
+  },
+};
+
+/** Resolves the `lang` a client sends; anything unknown is the default language. */
+export const resolveLang = (lang) => (typeof lang === "string" && Object.hasOwn(PROFILES, lang) ? lang : DEFAULT_LANG);
+
 export function buildDocuments(P = PROFILE) {
+  const L = LABELS[resolveLang(P.lang)];
   const byCompany = new Map();
   for (const job of P.experience) {
     const list = byCompany.get(job.company) || [];
@@ -145,30 +165,30 @@ export function buildDocuments(P = PROFILE) {
       id: "summary",
       data: {
         title: `${P.name} — ${P.headline}`,
-        text: `${P.name} is ${P.currentRole} at ${P.currentCompany} (${P.location}). ${P.resumeSummary} Contact: ${P.email}.`,
+        text: `${P.name} ${L.is} ${P.currentRole} ${L.at} ${P.currentCompany} (${P.location}). ${P.resumeSummary} ${L.contact}: ${P.email}.`,
       },
     },
     ...[...byCompany.entries()].map(([company, roles]) => ({
       id: `exp_${company.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
-      data: { title: `Experience — ${company}`, text: `${P.name}'s roles at ${company}: ` + roles.join(" | ") },
+      data: { title: `${L.experience} — ${company}`, text: L.rolesAt(P.name, company) + roles.join(" | ") },
     })),
     {
       id: "skills_education",
       data: {
-        title: "Skills, Education & Languages",
+        title: L.skillsTitle,
         text: [
-          `Top skills: ${P.topSkills.join(", ")}.`,
-          `Technologies: ${P.tech.join(", ")}.`,
-          `Education: ${P.education.degree}, ${P.education.school} (${P.education.years}).`,
-          `Languages: ${P.languages.map((l) => `${l.name} (${l.level})`).join(", ")}.`,
+          `${L.topSkills}: ${P.topSkills.join(", ")}.`,
+          `${L.technologies}: ${P.tech.join(", ")}.`,
+          `${L.education}: ${P.education.degree}, ${P.education.school} (${P.education.years}).`,
+          `${L.languages}: ${P.languages.map((l) => `${l.name} (${l.level})`).join(", ")}.`,
         ].join(" "),
       },
     },
     {
       id: "off_hours",
       data: {
-        title: "Outside of work",
-        text: `${P.name}'s activities outside of work: ` + P.offHours.join("; ") + ".",
+        title: L.outside,
+        text: L.outsideText(P.name) + P.offHours.join("; ") + ".",
       },
     },
   ];
@@ -252,7 +272,7 @@ export async function onRequestPost({ request, env, fetchImpl = fetch }) {
         { role: "user", content: userTurn(message, screen) },
       ],
       // Greetings and refusals don't need grounding, and leaving the documents out keeps them short.
-      ...(screen.kind === "question" && { documents: buildDocuments() }),
+      ...(screen.kind === "question" && { documents: buildDocuments(PROFILES[resolveLang(body?.lang)]) }),
       max_tokens: 250,
       stream: wantStream,
     });

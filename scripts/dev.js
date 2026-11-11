@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { onRequestPost } from '../functions/api/chat.js';
 import { loadEnv } from './env.js';
+import { build as buildData, CONTENT_DIR } from './build-data.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -27,6 +28,14 @@ const RELOAD_SNIPPET = `<script>(() => {
   es.onerror = () => { dropped = true; };
   es.onopen = () => { if (dropped) location.reload(); };
 })();</script>`;
+
+// Rebuild mock/data.js whenever the Markdown content changes; that write triggers the reload below.
+try { buildData(); } catch (err) { console.error(`content build failed: ${err.message}`); }
+try {
+  fs.watch(CONTENT_DIR, { recursive: true }, () => {
+    try { buildData(); } catch (err) { console.error(`content build failed: ${err.message}`); }
+  });
+} catch {}
 
 let reloadTimer = null;
 try {
